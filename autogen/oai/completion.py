@@ -788,6 +788,7 @@ class Completion(openai_Completion):
                 base_config = config.copy()
                 base_config["allow_format_str_template"] = allow_format_str_template
                 base_config.update(each_config)
+                base_config["stream"] = True
                 if i < last and filter_func is None and "max_retry_period" not in base_config:
                     # max_retry_period = 0 to avoid retrying when no filter is given
                     base_config["max_retry_period"] = 0
@@ -936,7 +937,7 @@ class Completion(openai_Completion):
             return_responses_and_per_instance_result (bool): Whether to also return responses
                 and per instance results in addition to the aggregated results.
             logging_level (optional): logging level. Defaults to logging.WARNING.
-            **config (dict): parametes passed to the openai api call `create()`.
+            **config (dict): parameters passed to the openai api call `create()`.
 
         Returns:
             None when no valid eval_func is provided in either test or tune;

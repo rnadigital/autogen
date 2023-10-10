@@ -3,7 +3,6 @@ name = "autogen"
 version = "0.1.0"
 description = "Multi-Agent Conversation"
 authors = ["ragy abraham <ragy@rna.digital>"]
-readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
@@ -11,8 +10,9 @@ openai = "*"
 diskcache = "*"
 termcolor = "*"
 flaml = "*"
-python-doten = "*"
+python-dotenv = "*"
 python-socketio = "*"
+numpy = "1.25.0"
 
 [build-system]
 requires = ["poetry-core"]
