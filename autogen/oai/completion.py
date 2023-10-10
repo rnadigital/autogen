@@ -184,6 +184,7 @@ class Completion(openai_Completion):
         Try cache first. If not found, call the openai api. If the api call fails, retry after retry_wait_time.
         """
         config = config.copy()
+        config["stream"] = True
         openai.api_key_path = config.pop("api_key_path", openai.api_key_path)
         key = get_key(config)
         if use_cache:
@@ -195,7 +196,7 @@ class Completion(openai_Completion):
         openai_completion = (
             openai.ChatCompletion
             if config["model"].replace("gpt-35-turbo", "gpt-3.5-turbo") in cls.chat_models
-            or issubclass(cls, ChatCompletion)
+               or issubclass(cls, ChatCompletion)
             else openai.Completion
         )
         start_time = time.time()
@@ -209,8 +210,8 @@ class Completion(openai_Completion):
                 else:
                     response = openai_completion.create(request_timeout=request_timeout, **config)
             except (
-                ServiceUnavailableError,
-                APIConnectionError,
+                    ServiceUnavailableError,
+                    APIConnectionError,
             ):
                 # transient error
                 logger.info(f"retrying in {retry_wait_time} seconds...", exc_info=1)
@@ -226,11 +227,11 @@ class Completion(openai_Completion):
             except (RateLimitError, Timeout) as err:
                 time_left = max_retry_period - (time.time() - start_time + retry_wait_time)
                 if (
-                    time_left > 0
-                    and isinstance(err, RateLimitError)
-                    or time_left > request_timeout
-                    and isinstance(err, Timeout)
-                    and "request_timeout" not in config
+                        time_left > 0
+                        and isinstance(err, RateLimitError)
+                        or time_left > request_timeout
+                        and isinstance(err, Timeout)
+                        and "request_timeout" not in config
                 ):
                     if isinstance(err, Timeout):
                         request_timeout <<= 1
@@ -437,10 +438,10 @@ class Completion(openai_Completion):
                     result["cost"] = cost
                     return result
                 if (
-                    prune
-                    and target_output_tokens
-                    and avg_n_tokens <= target_output_tokens * (1 - ratio)
-                    and (num_completions < config_n or num_completions == config_n and data_limit == data_length)
+                        prune
+                        and target_output_tokens
+                        and avg_n_tokens <= target_output_tokens * (1 - ratio)
+                        and (num_completions < config_n or num_completions == config_n and data_limit == data_length)
                 ):
                     # update valid n
                     cls._max_valid_n_per_max_tokens[region_key] = valid_n = cls._max_valid_n_per_max_tokens.get(
@@ -478,8 +479,8 @@ class Completion(openai_Completion):
                     cls.avg_input_tokens = np.mean(input_tokens)
                     if prune:
                         target_output_tokens = (
-                            inference_budget * 1000 - cls.avg_input_tokens * price_input
-                        ) / price_output
+                                                       inference_budget * 1000 - cls.avg_input_tokens * price_input
+                                               ) / price_output
                 result["inference_cost"] = (avg_n_tokens * price_output + cls.avg_input_tokens * price_input) / 1000
                 break
             else:
@@ -494,17 +495,17 @@ class Completion(openai_Completion):
 
     @classmethod
     def tune(
-        cls,
-        data: List[Dict],
-        metric: str,
-        mode: str,
-        eval_func: Callable,
-        log_file_name: Optional[str] = None,
-        inference_budget: Optional[float] = None,
-        optimization_budget: Optional[float] = None,
-        num_samples: Optional[int] = 1,
-        logging_level: Optional[int] = logging.WARNING,
-        **config,
+            cls,
+            data: List[Dict],
+            metric: str,
+            mode: str,
+            eval_func: Callable,
+            log_file_name: Optional[str] = None,
+            inference_budget: Optional[float] = None,
+            optimization_budget: Optional[float] = None,
+            num_samples: Optional[int] = 1,
+            logging_level: Optional[int] = logging.WARNING,
+            **config,
     ):
         """Tune the parameters for the OpenAI API call.
 
@@ -690,14 +691,14 @@ class Completion(openai_Completion):
 
     @classmethod
     def create(
-        cls,
-        context: Optional[Dict] = None,
-        use_cache: Optional[bool] = True,
-        config_list: Optional[List[Dict]] = None,
-        filter_func: Optional[Callable[[Dict, Dict, Dict], bool]] = None,
-        raise_on_ratelimit_or_timeout: Optional[bool] = True,
-        allow_format_str_template: Optional[bool] = False,
-        **config,
+            cls,
+            context: Optional[Dict] = None,
+            use_cache: Optional[bool] = True,
+            config_list: Optional[List[Dict]] = None,
+            filter_func: Optional[Callable[[Dict, Dict, Dict], bool]] = None,
+            raise_on_ratelimit_or_timeout: Optional[bool] = True,
+            allow_format_str_template: Optional[bool] = False,
+            **config,
     ):
         """Make a completion for a given context.
 
@@ -768,6 +769,11 @@ class Completion(openai_Completion):
         """
         if ERROR:
             raise ERROR
+            # Warn if a config list was provided but was empty
+        if type(config_list) is list and len(config_list) == 0:
+            logger.warning(
+                "Completion was provided with a config_list, but the list was empty. Adopting default OpenAI behavior, which reads from the 'model' parameter instead."
+            )
 
         # Warn if a config list was provided but was empty
         if type(config_list) is list and len(config_list) == 0:
@@ -821,10 +827,10 @@ class Completion(openai_Completion):
 
     @classmethod
     def instantiate(
-        cls,
-        template: Union[str, None],
-        context: Optional[Dict] = None,
-        allow_format_str_template: Optional[bool] = False,
+            cls,
+            template: Union[str, None],
+            context: Optional[Dict] = None,
+            allow_format_str_template: Optional[bool] = False,
     ):
         if not context or template is None:
             return template
@@ -872,14 +878,14 @@ class Completion(openai_Completion):
 
     @classmethod
     def test(
-        cls,
-        data,
-        eval_func=None,
-        use_cache=True,
-        agg_method="avg",
-        return_responses_and_per_instance_result=False,
-        logging_level=logging.WARNING,
-        **config,
+            cls,
+            data,
+            eval_func=None,
+            use_cache=True,
+            agg_method="avg",
+            return_responses_and_per_instance_result=False,
+            logging_level=logging.WARNING,
+            **config,
     ):
         """Evaluate the responses created with the config for the OpenAI API call.
 
@@ -1069,7 +1075,8 @@ class Completion(openai_Completion):
 
     @classmethod
     def start_logging(
-        cls, history_dict: Optional[Dict] = None, compact: Optional[bool] = True, reset_counter: Optional[bool] = True
+            cls, history_dict: Optional[Dict] = None, compact: Optional[bool] = True,
+            reset_counter: Optional[bool] = True
     ):
         """Start book keeping.
 
