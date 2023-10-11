@@ -1,6 +1,6 @@
 from .conversable_agent import ConversableAgent
 from typing import Callable, Dict, Optional, Union
-from sockets.simple_client import SimpleClient
+from socketio.simple_client import SimpleClient
 
 
 class UserProxyAgent(ConversableAgent):

@@ -6,7 +6,7 @@ import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 from autogen import oai
 from .agent import Agent
-from sockets.simple_client import SimpleClient
+from socketio.simple_client import SimpleClient
 from autogen.code_utils import (
     DEFAULT_MODEL,
     UNKNOWN,
@@ -14,7 +14,6 @@ from autogen.code_utils import (
     extract_code,
     infer_lang,
 )
-
 
 try:
     from termcolor import colored

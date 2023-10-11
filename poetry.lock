@@ -675,14 +675,12 @@ docs = ["sphinx"]
 
 [[package]]
 name = "python-socketio"
-version = "5.9.0"
-description = "Socket.IO server and client for Python"
+version = "5.9.1.dev0"
+description = ""
 optional = false
 python-versions = ">=3.6"
-files = [
-    {file = "python-socketio-5.9.0.tar.gz", hash = "sha256:dc42735f65534187f381fde291ebf620216a4960001370f32de940229b2e7f8f"},
-    {file = "python_socketio-5.9.0-py3-none-any.whl", hash = "sha256:c20f12e4ed0cba57581af26bbeea9998bc2eeebb3b952fa92493a1e051cfe9dc"},
-]
+files = []
+develop = false
 
 [package.dependencies]
 bidict = ">=0.21.0"
@@ -692,6 +690,12 @@ python-engineio = ">=4.7.0"
 asyncio-client = ["aiohttp (>=3.4)"]
 client = ["requests (>=2.21.0)", "websocket-client (>=0.54.0)"]
 docs = ["sphinx"]
+
+[package.source]
+type = "git"
+url = "https://github.com/miguelgrinberg/python-socketio.git"
+reference = "main"
+resolved_reference = "2e1f0262ad9a037858b04b9dcec7509ee5008f8c"
 
 [[package]]
 name = "requests"
@@ -897,4 +901,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "78e9b360647dd46f46488d5c7ed5cbc606cba4ca967269546b3428911e91210d"
+content-hash = "6dbbc1cbe4d56750c22aed7cad23cdf437f9e112fc80bfc702df3cb3f23a64ed"
