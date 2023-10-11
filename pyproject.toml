@@ -13,6 +13,7 @@ flaml = "*"
 python-dotenv = "*"
 python-socketio = "*"
 numpy = "1.25.0"
+pytest = "^7.4.2"
 
 [build-system]
 requires = ["poetry-core"]
