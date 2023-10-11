@@ -178,7 +178,7 @@ class Completion(openai_Completion):
         cls._count_create += 1
 
     @classmethod
-    def _get_response(cls, config: Dict, raise_on_ratelimit_or_timeout=False, use_cache=True):
+    def _get_response(cls, config: Dict, raise_on_ratelimit_or_timeout=False, use_cache=False):
         """Get the response from the openai api call.
 
         Try cache first. If not found, call the openai api. If the api call fails, retry after retry_wait_time.
