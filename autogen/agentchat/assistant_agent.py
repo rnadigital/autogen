@@ -1,5 +1,6 @@
 from .conversable_agent import ConversableAgent
 from typing import Callable, Dict, Optional, Union
+from sockets.simple_client import SimpleClient
 
 
 class AssistantAgent(ConversableAgent):
@@ -27,15 +28,18 @@ Reply "TERMINATE" in the end when everything is done.
     """
 
     def __init__(
-        self,
-        name: str,
-        system_message: Optional[str] = DEFAULT_SYSTEM_MESSAGE,
-        llm_config: Optional[Union[Dict, bool]] = None,
-        is_termination_msg: Optional[Callable[[Dict], bool]] = None,
-        max_consecutive_auto_reply: Optional[int] = None,
-        human_input_mode: Optional[str] = "NEVER",
-        code_execution_config: Optional[Union[Dict, bool]] = False,
-        **kwargs,
+            self,
+            name: str,
+            system_message: Optional[str] = DEFAULT_SYSTEM_MESSAGE,
+            llm_config: Optional[Union[Dict, bool]] = None,
+            is_termination_msg: Optional[Callable[[Dict], bool]] = None,
+            max_consecutive_auto_reply: Optional[int] = None,
+            human_input_mode: Optional[str] = "NEVER",
+            code_execution_config: Optional[Union[Dict, bool]] = False,
+            use_sockets: Optional[bool] = False,
+            socket_client: Optional[Union[SimpleClient, bool]] = None,
+            sid: Optional[Union[str, None]] = "",
+            **kwargs,
     ):
         """
         Args:
@@ -62,5 +66,8 @@ Reply "TERMINATE" in the end when everything is done.
             human_input_mode,
             code_execution_config=code_execution_config,
             llm_config=llm_config,
+            use_sockets=use_sockets,
+            socket_client=socket_client,
+            sid=sid,
             **kwargs,
         )

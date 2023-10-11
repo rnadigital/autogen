@@ -1,5 +1,6 @@
 from .conversable_agent import ConversableAgent
 from typing import Callable, Dict, Optional, Union
+from sockets.simple_client import SimpleClient
 
 
 class UserProxyAgent(ConversableAgent):
@@ -16,16 +17,19 @@ class UserProxyAgent(ConversableAgent):
     """
 
     def __init__(
-        self,
-        name: str,
-        is_termination_msg: Optional[Callable[[Dict], bool]] = None,
-        max_consecutive_auto_reply: Optional[int] = None,
-        human_input_mode: Optional[str] = "ALWAYS",
-        function_map: Optional[Dict[str, Callable]] = None,
-        code_execution_config: Optional[Union[Dict, bool]] = None,
-        default_auto_reply: Optional[Union[str, Dict, None]] = "",
-        llm_config: Optional[Union[Dict, bool]] = False,
-        system_message: Optional[str] = "",
+            self,
+            name: str,
+            is_termination_msg: Optional[Callable[[Dict], bool]] = None,
+            max_consecutive_auto_reply: Optional[int] = None,
+            human_input_mode: Optional[str] = "ALWAYS",
+            function_map: Optional[Dict[str, Callable]] = None,
+            code_execution_config: Optional[Union[Dict, bool]] = None,
+            default_auto_reply: Optional[Union[str, Dict, None]] = "",
+            llm_config: Optional[Union[Dict, bool]] = False,
+            system_message: Optional[str] = "",
+            use_sockets: Optional[bool] = False,
+            socket_client: Optional[Union[SimpleClient, bool]] = None,
+            sid: Optional[Union[str, None]] = "",
     ):
         """
         Args:
@@ -79,4 +83,7 @@ class UserProxyAgent(ConversableAgent):
             code_execution_config,
             llm_config,
             default_auto_reply,
+            use_sockets,
+            socket_client,
+            sid
         )
