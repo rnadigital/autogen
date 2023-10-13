@@ -1,4 +1,3 @@
-import signal
 import subprocess
 import sys
 import os
@@ -9,6 +8,7 @@ import time
 from hashlib import md5
 import logging
 from autogen import oai
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 try:
     import docker
@@ -46,7 +46,7 @@ def infer_lang(code):
 
 
 def extract_code(
-    text: str, pattern: str = CODE_BLOCK_PATTERN, detect_single_line_code: bool = False
+        text: str, pattern: str = CODE_BLOCK_PATTERN, detect_single_line_code: bool = False
 ) -> List[Tuple[str, str]]:
     """Extract code from a text.
 
@@ -214,12 +214,12 @@ def _cmd(lang):
 
 
 def execute_code(
-    code: Optional[str] = None,
-    timeout: Optional[int] = None,
-    filename: Optional[str] = None,
-    work_dir: Optional[str] = None,
-    use_docker: Optional[Union[List[str], str, bool]] = True,
-    lang: Optional[str] = "python",
+        code: Optional[str] = None,
+        timeout: Optional[int] = None,
+        filename: Optional[str] = None,
+        work_dir: Optional[str] = None,
+        use_docker: Optional[Union[List[str], str, bool]] = True,
+        lang: Optional[str] = "python",
 ) -> Tuple[int, str, str]:
     """Execute code in a docker container.
     This function is not tested on MacOS.
@@ -299,21 +299,20 @@ def execute_code(
                 text=True,
             )
         else:
-            signal.signal(signal.SIGALRM, timeout_handler)
-            try:
-                signal.alarm(timeout)
-                # run the code in a subprocess in the current docker container in the working directory
-                result = subprocess.run(
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    subprocess.run,
                     cmd,
                     cwd=work_dir,
                     capture_output=True,
                     text=True,
                 )
-                signal.alarm(0)
-            except TimeoutError:
-                if original_filename is None:
-                    os.remove(filepath)
-                return 1, TIMEOUT_MSG, None
+                try:
+                    result = future.result(timeout=timeout)
+                except TimeoutError:
+                    if original_filename is None:
+                        os.remove(filepath)
+                    return 1, TIMEOUT_MSG, None
         if original_filename is None:
             os.remove(filepath)
         if result.returncode:
@@ -444,13 +443,13 @@ def _remove_check(response):
 
 
 def eval_function_completions(
-    responses: List[str],
-    definition: str,
-    test: Optional[str] = None,
-    entry_point: Optional[str] = None,
-    assertions: Optional[Union[str, Callable[[str], Tuple[str, float]]]] = None,
-    timeout: Optional[float] = 3,
-    use_docker: Optional[bool] = True,
+        responses: List[str],
+        definition: str,
+        test: Optional[str] = None,
+        entry_point: Optional[str] = None,
+        assertions: Optional[Union[str, Callable[[str], Tuple[str, float]]]] = None,
+        timeout: Optional[float] = 3,
+        use_docker: Optional[bool] = True,
 ) -> Dict:
     """Select a response from a list of responses for the function completion task (using generated assertions), and/or evaluate if the task is successful using a gold test.
 
@@ -553,9 +552,9 @@ class PassAssertionFilter:
 
 
 def implement(
-    definition: str,
-    configs: Optional[List[Dict]] = None,
-    assertions: Optional[Union[str, Callable[[str], Tuple[str, float]]]] = generate_assertions,
+        definition: str,
+        configs: Optional[List[Dict]] = None,
+        assertions: Optional[Union[str, Callable[[str], Tuple[str, float]]]] = generate_assertions,
 ) -> Tuple[str, float]:
     """Implement a function from a definition.
 
