@@ -768,7 +768,6 @@ class ConversableAgent(Agent):
                 self.socket_client.emit("terminate",
                                         {"room": self.sid,
                                          "message": {"type": "termination", "sessionId": self.sid}})
-                self.socket_client.emit()
             return True, None
 
         # send the human reply
