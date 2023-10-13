@@ -781,10 +781,10 @@ class ConversableAgent(Agent):
         if reply or self._max_consecutive_auto_reply_dict[sender] == 0:
             # reset the consecutive_auto_reply_counter
             self._consecutive_auto_reply_counter[sender] = 0
-            if self.use_sockets:
-                self.socket_client.emit("terminate",
-                                        {"room": self.sid,
-                                         "message": {"type": "termination", "sessionId": self.sid}})
+            # if self.use_sockets:
+            #     self.socket_client.emit("terminate",
+            #                             {"room": self.sid,
+            #                              "message": {"type": "termination", "sessionId": self.sid}})
             return True, reply
 
         # increment the consecutive_auto_reply_counter
