@@ -430,7 +430,9 @@ class ConversableAgent(Agent):
                                                 {"room": sid, "authorName": sender.name,
                                                  "message": {"type": "code", "text": content}})
                     else:
-                        pass
+                        self.socket_client.emit("message",
+                                                {"room": sid, "authorName": sender.name,
+                                                 "message": {"type": "code", "text": content}})
             else:
                 raise Exception("Sockets Config missing although use_sockets is set to True")
         except Exception as e:
@@ -933,7 +935,7 @@ class ConversableAgent(Agent):
                 try:
                     print("Custom input function...")
                     self.socket_client.emit("message", {"room": sid, "message": prompt})
-                    feedback = self.socket_client.receive(timeout=300)
+                    feedback = self.socket_client.receive()
                     return feedback[1]
                 except TimeoutError:
                     self.socket_client.emit("message", {"room": sid, "type": "error", "message": "TimeOutError"})
