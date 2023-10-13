@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Union
 from .agent import Agent
 from .conversable_agent import ConversableAgent
 import logging
+from socketio.simple_client import SimpleClient
 
 logger = logging.getLogger(__name__)
 
@@ -78,31 +79,37 @@ class GroupChatManager(ConversableAgent):
     """(In preview) A chat manager agent that can manage a group chat of multiple agents."""
 
     def __init__(
-        self,
-        groupchat: GroupChat,
-        name: Optional[str] = "chat_manager",
-        # unlimited consecutive auto reply by default
-        max_consecutive_auto_reply: Optional[int] = sys.maxsize,
-        human_input_mode: Optional[str] = "NEVER",
-        system_message: Optional[str] = "Group chat manager.",
-        # seed: Optional[int] = 4,
-        **kwargs,
+            self,
+            groupchat: GroupChat,
+            name: Optional[str] = "chat_manager",
+            # unlimited consecutive auto reply by default
+            max_consecutive_auto_reply: Optional[int] = sys.maxsize,
+            human_input_mode: Optional[str] = "NEVER",
+            system_message: Optional[str] = "Group chat manager.",
+            use_sockets: Optional[bool] = False,
+            socket_client: Optional[Union[SimpleClient, bool]] = None,
+            sid: Optional[Union[str, None]] = "",
+            # seed: Optional[int] = 4,
+            **kwargs,
     ):
         super().__init__(
             name=name,
             max_consecutive_auto_reply=max_consecutive_auto_reply,
             human_input_mode=human_input_mode,
             system_message=system_message,
+            use_sockets=use_sockets,
+            socket_client=socket_client,
+            sid=sid,
             **kwargs,
         )
         self.register_reply(Agent, GroupChatManager.run_chat, config=groupchat, reset_config=GroupChat.reset)
         # self._random = random.Random(seed)
 
     def run_chat(
-        self,
-        messages: Optional[List[Dict]] = None,
-        sender: Optional[Agent] = None,
-        config: Optional[GroupChat] = None,
+            self,
+            messages: Optional[List[Dict]] = None,
+            sender: Optional[Agent] = None,
+            config: Optional[GroupChat] = None,
     ) -> Union[str, Dict, None]:
         """Run a group chat."""
         if messages is None:
