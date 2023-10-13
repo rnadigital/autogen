@@ -747,14 +747,16 @@ class ConversableAgent(Agent):
                             case True:
                                 reply = "exit"
             case "TERMINAL":
-                reply = self.get_human_input(
-                    f"Please give feedback to {sender.name}. Press enter or type 'exit' to stop the conversation: "
-                    if is_terminal
-                    else f"Please give feedback to {sender.name}. Press enter to skip and use auto-reply, or type 'exit' to stop the conversation: "
-                )
-                # if the human input is empty, and the message is a termination message,
-                # then we will terminate the conversation
-                reply = reply if reply or not is_terminal else "exit"
+                match is_terminal:
+                    case True:
+                        reply = self.get_human_input(
+                            f"Please give feedback to {sender.name}. Press enter or type 'exit' to stop the conversation: "
+                            if is_terminal
+                            else f"Please give feedback to {sender.name}. Press enter to skip and use auto-reply, or type 'exit' to stop the conversation: "
+                        )
+                        # if the human input is empty, and the message is a termination message,
+                        # then we will terminate the conversation
+                        reply = reply if reply or not is_terminal else "exit"
 
         # print the no_human_input_msg
         if no_human_input_msg:
