@@ -128,6 +128,7 @@ class ConversableAgent(Agent):
         self.reply_at_receive = defaultdict(bool)
         self.use_sockets = use_sockets
         self.sid = sid
+        self.termination_words = ["exit", "stop", "terminate", "done"]
         if self.use_sockets:
             self.socket_client = socket_client
             if not self.sid:
@@ -402,11 +403,13 @@ class ConversableAgent(Agent):
                 if message.get("roles") == "function":
                     func_print = f"***** Response from calling function \"{message['name']}\" *****"
                     self.socket_client.emit("message",
-                                            {"room": sid, "authorName": sender.name,"message": {"type": "function", "text": func_print}})
+                                            {"room": sid, "authorName": sender.name,
+                                             "message": {"type": "function", "text": func_print}})
                 elif "function_call" in message:
                     func_print = f"***** Suggested function Call: {message['function_call'].get('name', '(No function name found)')} *****"
                     self.socket_client.emit("message",
-                                            {"room": sid, "authorName": sender.name, "message": {"type": "function_call", "text": func_print}})
+                                            {"room": sid, "authorName": sender.name,
+                                             "message": {"type": "function_call", "text": func_print}})
                 elif message.get("content") is not None:
                     content = message.get("content")
                     code = extract_code(content)
@@ -414,7 +417,9 @@ class ConversableAgent(Agent):
                         if code[0][0] != UNKNOWN:
                             print("===Code Detected===")
                             self.socket_client.emit("message",
-                                                    {"room": sid,"authorName": sender.name, "message": {"type": "code", "language": code[0][0], "text": code[0][1]}})
+                                                    {"room": sid, "authorName": sender.name,
+                                                     "message": {"type": "code", "language": code[0][0],
+                                                                 "text": code[0][1]}})
                     if "context" in message:
                         content = oai.ChatCompletion.instantiate(
                             content,
@@ -422,7 +427,8 @@ class ConversableAgent(Agent):
                             self.llm_config and self.llm_config.get("allow_format_str_template", False),
                         )
                         self.socket_client.emit("message",
-                                                {"room": sid,"authorName": sender.name, "message": {"type": "code", "text": content}})
+                                                {"room": sid, "authorName": sender.name,
+                                                 "message": {"type": "code", "text": content}})
                     else:
                         pass
             else:
@@ -716,64 +722,63 @@ class ConversableAgent(Agent):
             config: Optional[Any] = None,
     ) -> Tuple[bool, Union[str, Dict, None]]:
         """Check if the conversation should be terminated, and if human reply is provided."""
-        if config is None:
-            config = self
         if messages is None:
             messages = self._oai_messages[sender]
         message = messages[-1]
         reply = ""
-        no_human_input_msg = ""
-        if self.human_input_mode == "ALWAYS":
-            reply = self.get_human_input(
-                f"Provide feedback to {sender.name}. Press enter to skip and use auto-reply, or type 'exit' to end the conversation: "
-            )
-            no_human_input_msg = "NO HUMAN INPUT RECEIVED." if not reply else ""
-            # if the human input is empty, and the message is a termination message,
-            # then we will terminate the conversation
-            reply = reply if reply or not self._is_termination_msg(message) else "exit"
-        else:
-            if self._consecutive_auto_reply_counter[sender] >= self._max_consecutive_auto_reply_dict[sender]:
-                if self.human_input_mode == "NEVER":
-                    reply = "exit"
-                else:
-                    # self.human_input_mode == "TERMINATE":
-                    terminate = self._is_termination_msg(message)
-                    reply = self.get_human_input(
-                        f"Please give feedback to {sender.name}. Press enter or type 'exit' to stop the conversation: "
-                        if terminate
-                        else f"Please give feedback to {sender.name}. Press enter to skip and use auto-reply, or type 'exit' to stop the conversation: "
-                    )
-                    no_human_input_msg = "NO HUMAN INPUT RECEIVED." if not reply else ""
-                    # if the human input is empty, and the message is a termination message,
-                    # then we will terminate the conversation
-                    reply = reply if reply or not terminate else "exit"
-            elif self._is_termination_msg(message):
-                if self.human_input_mode == "NEVER":
-                    reply = "exit"
-                else:
-                    # self.human_input_mode == "TERMINATE":
-                    reply = self.get_human_input(
-                        f"Please give feedback to {sender.name}. Press enter or type 'exit' to stop the conversation: "
-                    )
-                    no_human_input_msg = "NO HUMAN INPUT RECEIVED." if not reply else ""
-                    # if the human input is empty, and the message is a termination message,
-                    # then we will terminate the conversation
-                    reply = reply or "exit"
+        no_human_input_msg = "NO HUMAN INPUT RECEIVED." if not reply else ""
+        reached_max_auto_reply_threshold = True if self._consecutive_auto_reply_counter[sender] >= \
+                                                   self._max_consecutive_auto_reply_dict[sender] else False
+        is_terminal = self._is_termination_msg(message)
+        match self.human_input_mode:
+            case "ALWAYS":
+                # if the human input is empty, and the message is a termination message,
+                # then we will terminate the conversation
+                reply = self.get_human_input(
+                    f"Provide feedback to {sender.name}. Press enter to skip and use auto-reply, or type 'exit' to end the conversation: "
+                )
+                reply = reply if reply or not is_terminal else "exit"
+            case "NEVER":
+                match reached_max_auto_reply_threshold:
+                    case True:
+                        reply = "exit"
+                    case False:
+                        match is_terminal:
+                            case True:
+                                reply = "exit"
+            case "TERMINAL":
+                reply = self.get_human_input(
+                    f"Please give feedback to {sender.name}. Press enter or type 'exit' to stop the conversation: "
+                    if is_terminal
+                    else f"Please give feedback to {sender.name}. Press enter to skip and use auto-reply, or type 'exit' to stop the conversation: "
+                )
+                # if the human input is empty, and the message is a termination message,
+                # then we will terminate the conversation
+                reply = reply if reply or not is_terminal else "exit"
 
         # print the no_human_input_msg
         if no_human_input_msg:
             print(colored(f"\n>>>>>>>> {no_human_input_msg}", "red"), flush=True)
 
         # stop the conversation
-        if reply == "exit":
+        if reply in self.termination_words:
             # reset the consecutive_auto_reply_counter
             self._consecutive_auto_reply_counter[sender] = 0
+            if self.use_sockets:
+                self.socket_client.emit("terminate",
+                                        {"room": self.sid,
+                                         "message": {"type": "termination", "sessionId": self.sid}})
+                self.socket_client.emit()
             return True, None
 
         # send the human reply
         if reply or self._max_consecutive_auto_reply_dict[sender] == 0:
             # reset the consecutive_auto_reply_counter
             self._consecutive_auto_reply_counter[sender] = 0
+            if self.use_sockets:
+                self.socket_client.emit("terminate",
+                                        {"room": self.sid,
+                                         "message": {"type": "termination", "sessionId": self.sid}})
             return True, reply
 
         # increment the consecutive_auto_reply_counter
