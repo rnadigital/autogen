@@ -787,7 +787,7 @@ class Completion(openai_Completion):
                 base_config = config.copy()
                 base_config["allow_format_str_template"] = allow_format_str_template
                 base_config.update(each_config)
-                base_config["stream"] = True
+                base_config["stream"] = False
                 if i < last and filter_func is None and "max_retry_period" not in base_config:
                     # max_retry_period = 0 to avoid retrying when no filter is given
                     base_config["max_retry_period"] = 0

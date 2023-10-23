@@ -939,7 +939,9 @@ class ConversableAgent(Agent):
                 sid = self.sid
                 try:
                     print("Custom input function...")
-                    self.socket_client.emit("message", {"room": sid, "message": prompt})
+                    self.socket_client.emit(
+                        "message",
+                        {"room": sid, "type": "text", "isFeedback": True, "message": prompt})
                     feedback = self.socket_client.receive()
                     return feedback[1]
                 except TimeoutError:
