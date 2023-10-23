@@ -402,37 +402,42 @@ class ConversableAgent(Agent):
                 sid = self.sid
                 if message.get("roles") == "function":
                     func_print = f"***** Response from calling function \"{message['name']}\" *****"
-                    self.socket_client.emit("message",
-                                            {"room": sid, "authorName": sender.name,
-                                             "message": {"type": "function", "text": func_print}})
+                    self.socket_client.emit(
+                        "message",
+                        {"room": sid, "authorName": sender.name,
+                         "message": {"type": "function", "text": func_print}})
                 elif "function_call" in message:
                     func_print = f"***** Suggested function Call: {message['function_call'].get('name', '(No function name found)')} *****"
-                    self.socket_client.emit("message",
-                                            {"room": sid, "authorName": sender.name,
-                                             "message": {"type": "function_call", "text": func_print}})
+                    self.socket_client.emit(
+                        "message",
+                        {"room": sid, "authorName": sender.name,
+                         "message": {"type": "function_call", "text": func_print}})
                 elif message.get("content") is not None:
                     content = message.get("content")
                     code = extract_code(content)
                     if code:
                         if code[0][0] != UNKNOWN:
                             print("===Code Detected===")
-                            self.socket_client.emit("message",
-                                                    {"room": sid, "authorName": sender.name,
-                                                     "message": {"type": "code", "language": code[0][0],
-                                                                 "text": code[0][1]}})
+                            self.socket_client.emit(
+                                "message",
+                                {"room": sid, "authorName": sender.name,
+                                 "message": {"type": "code", "language": code[0][0],
+                                             "text": code[0][1]}})
                     if "context" in message:
                         content = oai.ChatCompletion.instantiate(
                             content,
                             message["context"],
                             self.llm_config and self.llm_config.get("allow_format_str_template", False),
                         )
-                        self.socket_client.emit("message",
-                                                {"room": sid, "authorName": sender.name,
-                                                 "message": {"type": "code", "text": content}})
+                        self.socket_client.emit(
+                            "message",
+                            {"room": sid, "authorName": sender.name,
+                             "message": {"type": "text", "text": content}})
                     else:
-                        self.socket_client.emit("message",
-                                                {"room": sid, "authorName": sender.name,
-                                                 "message": {"type": "code", "text": content}})
+                        self.socket_client.emit(
+                            "message",
+                            {"room": sid, "authorName": sender.name,
+                             "message": {"type": "text", "text": content}})
             else:
                 raise Exception("Sockets Config missing although use_sockets is set to True")
         except Exception as e:
