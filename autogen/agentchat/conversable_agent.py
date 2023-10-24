@@ -482,8 +482,7 @@ class ConversableAgent(Agent):
         print("\n", "-" * 80, flush=True, sep="")
 
     def _process_received_message(self, messages, sender, silent):
-        if isinstance(messages, list):
-            message = "".join(messages)
+        message = "".join(messages) if isinstance(messages, list) else messages
         message = self._message_to_dict(message)
         # When the agent receives a message, the role of the message is "user".
         # (If 'role' exists and is 'function', it will remain unchanged.)
