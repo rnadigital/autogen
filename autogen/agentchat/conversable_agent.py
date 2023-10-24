@@ -416,6 +416,12 @@ class ConversableAgent(Agent):
                          "message": {"type": "function_call", "text": func_print}})
                 elif message.get("content") is not None:
                     content = message.get("content")
+                    if content.strip().startswith("{"):
+                        return self.socket_client.emit(
+                            "message",
+                            {"room": sid, "authorName": sender.name,
+                             "message": {"type": "code", "language": "json",
+                                         "text": content}})
                     code = extract_code(content)
                     if code:
                         if code[0][0] != UNKNOWN:
