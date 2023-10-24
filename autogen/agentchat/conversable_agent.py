@@ -267,7 +267,7 @@ class ConversableAgent(Agent):
         else:
             return message
 
-    def _append_oai_message(self, message: Union[Dict, str], role, conversation_id: Agent) -> bool:
+    def _append_oai_message(self, message: Union[Dict, str, list], role, conversation_id: Agent) -> bool:
         """Append a message to the ChatCompletion conversation.
 
         If the message received is a string, it will be put in the "content" field of the new dictionary.
@@ -283,6 +283,8 @@ class ConversableAgent(Agent):
         Returns:
             bool: whether the message is appended to the ChatCompletion conversation.
         """
+        if isinstance(message, list):
+            message = message.join("")
         message = self._message_to_dict(message)
         # create oai message to be appended to the oai conversation that can be passed to oai directly.
         oai_message = {k: message[k] for k in ("content", "function_call", "name", "context") if k in message}
@@ -393,7 +395,7 @@ class ConversableAgent(Agent):
             await recipient.a_receive(message, self, request_reply, silent)
         else:
             raise ValueError(
-                "Message can't be converted into a valid ChatCompletion message. Either content or function_call must be provided."
+                "wher content or function_call must be provided."
             )
 
     def _send_to_socket(self, message: Union[Dict, str], sender: Agent):
