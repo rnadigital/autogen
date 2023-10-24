@@ -473,7 +473,9 @@ class ConversableAgent(Agent):
                 print(colored("*" * len(func_print), "green"), flush=True)
         print("\n", "-" * 80, flush=True, sep="")
 
-    def _process_received_message(self, message, sender, silent):
+    def _process_received_message(self, messages, sender, silent):
+        if isinstance(messages, list):
+            message = messages.join("")
         message = self._message_to_dict(message)
         # When the agent receives a message, the role of the message is "user".
         # (If 'role' exists and is 'function', it will remain unchanged.)
@@ -486,13 +488,15 @@ class ConversableAgent(Agent):
         if not silent:
             match self.use_sockets:
                 case True:
-                    self._send_to_socket(message, sender)
+                    messages = [messages] if not isinstance(messages, list) else messages
+                    for message in message:
+                        self._send_to_socket(message, sender)
                 case False:
                     self._print_received_message(message, sender)
 
     def receive(
             self,
-            message: Union[Dict, str],
+            messages: Union[Dict, str, list],
             sender: Agent,
             request_reply: Optional[bool] = None,
             silent: Optional[bool] = False,
@@ -503,7 +507,7 @@ class ConversableAgent(Agent):
         The reply can be generated automatically or entered manually by a human.
 
         Args:
-            message (dict or str): message from the sender. If the type is dict, it may contain the following reserved fields (either content or function_call need to be provided).
+            messages (dict or str or list): message from the sender. If the type is dict, it may contain the following reserved fields (either content or function_call need to be provided).
                 1. "content": content of the message, can be None.
                 2. "function_call": a dictionary containing the function name and arguments.
                 3. "role": role of the message, can be "assistant", "user", "function".
@@ -519,7 +523,7 @@ class ConversableAgent(Agent):
         Raises:
             ValueError: if the message can't be converted into a valid ChatCompletion message.
         """
-        self._process_received_message(message, sender, silent)
+        self._process_received_message(messages, sender, silent)
         if request_reply is False or request_reply is None and self.reply_at_receive[sender] is False:
             return
         reply = self.generate_reply(messages=self.chat_messages[sender], sender=sender)
