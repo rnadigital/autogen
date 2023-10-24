@@ -491,8 +491,9 @@ class ConversableAgent(Agent):
             match self.use_sockets:
                 case True:
                     messages = [messages] if not isinstance(messages, list) else messages
-                    for message in message:
-                        self._send_to_socket(message, sender)
+                    for m in messages:
+                        _m = self._message_to_dict(m)
+                        self._send_to_socket(_m, sender)
                 case False:
                     self._print_received_message(message, sender)
 
