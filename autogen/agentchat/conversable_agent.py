@@ -284,7 +284,7 @@ class ConversableAgent(Agent):
             bool: whether the message is appended to the ChatCompletion conversation.
         """
         if isinstance(message, list):
-            message = message.join("")
+            message = "".join(message)
         message = self._message_to_dict(message)
         # create oai message to be appended to the oai conversation that can be passed to oai directly.
         oai_message = {k: message[k] for k in ("content", "function_call", "name", "context") if k in message}
@@ -302,7 +302,7 @@ class ConversableAgent(Agent):
 
     def send(
             self,
-            message: Union[Dict, str],
+            message: Union[Dict, str, list],
             recipient: Agent,
             request_reply: Optional[bool] = None,
             silent: Optional[bool] = False,
@@ -477,7 +477,7 @@ class ConversableAgent(Agent):
 
     def _process_received_message(self, messages, sender, silent):
         if isinstance(messages, list):
-            message = messages.join("")
+            message = "".join(messages)
         message = self._message_to_dict(message)
         # When the agent receives a message, the role of the message is "user".
         # (If 'role' exists and is 'function', it will remain unchanged.)
