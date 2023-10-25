@@ -409,13 +409,14 @@ class ConversableAgent(Agent):
                         "message",
                         {"room": sid, "authorName": sender.name,
                          "message": {"type": "function", "text": func_print,
-                                     "timestamp": int(datetime.datetime.now().timestamp() * 1000)}})
+                                     "timestamp": datetime.datetime.now().timestamp() * 1000}})
                 elif "function_call" in message:
                     func_print = f"***** Suggested function Call: {message['function_call'].get('name', '(No function name found)')} *****"
                     self.socket_client.emit(
                         "message",
                         {"room": sid, "authorName": sender.name,
-                         "message": {"type": "function_call", "text": func_print}})
+                         "message": {"type": "function_call", "text": func_print,
+                                     "timestamp": datetime.datetime.now().timestamp() * 1000}})
                 elif message.get("content") is not None:
                     content = message.get("content")
                     if content.strip().startswith("{"):
@@ -423,7 +424,8 @@ class ConversableAgent(Agent):
                             "message",
                             {"room": sid, "authorName": sender.name,
                              "message": {"type": "code", "language": "json",
-                                         "text": content}})
+                                         "text": content,
+                                         "timestamp": datetime.datetime.now().timestamp() * 1000}})
                     code = extract_code(content)
                     if code:
                         if code[0][0] != UNKNOWN:
@@ -432,7 +434,7 @@ class ConversableAgent(Agent):
                                 {"room": sid, "authorName": sender.name,
                                  "message": {"type": "code", "language": code[0][0],
                                              "text": code[0][1],
-                                             "timestamp": int(datetime.datetime.now().timestamp() * 1000)}})
+                                             "timestamp": datetime.datetime.now().timestamp() * 1000}})
                     if "context" in message:
                         content = oai.ChatCompletion.instantiate(
                             content,
@@ -443,13 +445,13 @@ class ConversableAgent(Agent):
                             "message",
                             {"room": sid, "authorName": sender.name,
                              "message": {"type": "text", "text": content,
-                                         "timestamp": int(datetime.datetime.now().timestamp() * 1000)}})
+                                         "timestamp": datetime.datetime.now().timestamp() * 1000}})
                     else:
                         self.socket_client.emit(
                             "message",
                             {"room": sid, "authorName": sender.name,
                              "message": {"type": "text", "text": content,
-                                         "timestamp": int(datetime.datetime.now().timestamp() * 1000)}})
+                                         "timestamp": datetime.datetime.now().timestamp() * 1000}})
             else:
                 raise Exception("Sockets Config missing although use_sockets is set to True")
         except Exception as e:
