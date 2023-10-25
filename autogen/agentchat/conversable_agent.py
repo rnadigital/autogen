@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 from collections import defaultdict
 import copy
 import json
@@ -407,7 +408,8 @@ class ConversableAgent(Agent):
                     self.socket_client.emit(
                         "message",
                         {"room": sid, "authorName": sender.name,
-                         "message": {"type": "function", "text": func_print}})
+                         "message": {"type": "function", "text": func_print,
+                                     "timestamp": int(datetime.datetime.now().timestamp() * 1000)}})
                 elif "function_call" in message:
                     func_print = f"***** Suggested function Call: {message['function_call'].get('name', '(No function name found)')} *****"
                     self.socket_client.emit(
@@ -425,12 +427,12 @@ class ConversableAgent(Agent):
                     code = extract_code(content)
                     if code:
                         if code[0][0] != UNKNOWN:
-                            print("===Code Detected===")
                             self.socket_client.emit(
                                 "message",
                                 {"room": sid, "authorName": sender.name,
                                  "message": {"type": "code", "language": code[0][0],
-                                             "text": code[0][1]}})
+                                             "text": code[0][1],
+                                             "timestamp": int(datetime.datetime.now().timestamp() * 1000)}})
                     if "context" in message:
                         content = oai.ChatCompletion.instantiate(
                             content,
@@ -440,12 +442,14 @@ class ConversableAgent(Agent):
                         self.socket_client.emit(
                             "message",
                             {"room": sid, "authorName": sender.name,
-                             "message": {"type": "text", "text": content}})
+                             "message": {"type": "text", "text": content,
+                                         "timestamp": int(datetime.datetime.now().timestamp() * 1000)}})
                     else:
                         self.socket_client.emit(
                             "message",
                             {"room": sid, "authorName": sender.name,
-                             "message": {"type": "text", "text": content}})
+                             "message": {"type": "text", "text": content,
+                                         "timestamp": int(datetime.datetime.now().timestamp() * 1000)}})
             else:
                 raise Exception("Sockets Config missing although use_sockets is set to True")
         except Exception as e:
