@@ -60,8 +60,8 @@ class ChatCompletionProxy:
             return response
         except Exception as e:
             logging.exception(e)
-            content = "An error has occurred"
-            message_uuid = None
-            first = True
-            self.callback(content, message_uuid, first, 0)
+            # content = "An error has occurred"
+            # message_uuid = None
+            # first = True
+            # # self.callback(content, message_uuid, first, 0)
             return None
