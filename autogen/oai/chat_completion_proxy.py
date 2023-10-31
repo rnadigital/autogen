@@ -1,21 +1,16 @@
 import openai
 import tiktoken
+from uuid import uuid4
 
 
 class ChatCompletionProxy:
 
     def __init__(self, callback):
         self.callback = callback
+        self.encoding = tiktoken.get_encoding("cl100k_base")
 
-    @staticmethod
-    def _prompt_tokens(messages):
-        # Get the encoding for OpenAI's "cl100k_base" model
-        encoding = tiktoken.get_encoding("cl100k_base")
-
-        # Calculate the total number of tokens in the prompt
-        # by iterating over each message in the 'messages' list,
-        # encoding its content, and summing up the token counts.
-        return sum([len(encoding.encode(msg['content'])) for msg in messages])
+    def _prompt_tokens(self, message: str):
+        return len(self.encoding.encode(message))
 
     def create(self, *args, **kwargs):
         # Check if streaming is enabled in the function arguments
@@ -26,15 +21,15 @@ class ChatCompletionProxy:
             # Set the terminal text color to green for better visibility
             print("\033[32m", end='')
             first = True
+            message_uuid = uuid4()
             # Send the chat completion request to OpenAI's API and process the response in chunks
             for chunk in openai.ChatCompletion.create(*args, **kwargs):
                 if chunk["choices"]:
                     content = chunk["choices"][0].get("delta", {}).get("content")
                     # If content is present, print it to the terminal and update response variables
                     if content is not None:
-                        self.callback(content, first)
+                        self.callback(content, message_uuid, first, self._prompt_tokens(content))
                         first = False
-                        print(content, end='', flush=True)
                         response_content += content
                         completion_tokens += 1
 
@@ -49,6 +44,7 @@ class ChatCompletionProxy:
             }
 
             prompt_tokens = self._prompt_tokens(kwargs["messages"])
+            print(f"Tokens used: {prompt_tokens} ")
             # Add usage information to the response
             response["usage"] = {
                 "prompt_tokens": prompt_tokens,

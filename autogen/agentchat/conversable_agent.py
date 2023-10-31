@@ -396,7 +396,7 @@ class ConversableAgent(Agent):
             await recipient.a_receive(message, self, request_reply, silent)
         else:
             raise ValueError(
-                "wher content or function_call must be provided."
+                "where content or function_call must be provided."
             )
 
     def _send_to_socket(self, message: Union[Dict, str], sender: Agent):
@@ -501,10 +501,11 @@ class ConversableAgent(Agent):
         if not silent:
             match self.use_sockets:
                 case True:
-                    messages = [messages] if not isinstance(messages, list) else messages
-                    for m in messages:
-                        _m = self._message_to_dict(m)
-                        self._send_to_socket(_m, sender)
+                    # messages = [messages] if not isinstance(messages, list) else messages
+                    # for m in messages:
+                    #     _m = self._message_to_dict(m)
+                    #     self._send_to_socket(_m, sender)
+                    print("sending in chunks")
                 case False:
                     self._print_received_message(message, sender)
 
@@ -670,13 +671,16 @@ class ConversableAgent(Agent):
         else:
             self._oai_messages[agent].clear()
 
-    def send_oai_chunk_to_socket(self, sender, chunk, first=False):
+    def send_oai_chunk_to_socket(self, sender, chunk, uuid, first=False, token=0):
 
         self.socket_client.emit("message", {
-            "room": self.sid, "authorName": sender.name,
+            "room": self.sid,
+            "authorName": sender.name,
             "message": {
+                "uuid": uuid,
                 "text": chunk,
                 "first": first,
+                "tokens": token,
                 "timestamp": datetime.datetime.now().timestamp() * 1000
             }
         })
@@ -694,8 +698,10 @@ class ConversableAgent(Agent):
         if messages is None:
             messages = self._oai_messages[sender]
         # TODO: #1143 handle token limit exceeded error
-        llm_config["chunk_callback"] = lambda chunk, first: self.send_oai_chunk_to_socket(sender, chunk, first)
         llm_config["stream"] = self.use_sockets
+        llm_config["chunk_callback"] = lambda chunk, uuid, token, first: self.send_oai_chunk_to_socket(sender, chunk,
+                                                                                                       uuid, first,
+                                                                                                       token)
         response = oai.ChatCompletion.create(
             context=messages[-1].pop("context", None), messages=self._oai_system_message + messages, **llm_config
         )
