@@ -186,6 +186,7 @@ class Completion(openai_Completion):
         """
         config = config.copy()
         openai.api_key_path = config.pop("api_key_path", openai.api_key_path)
+        chunk_callback = config.pop("chunk_callback")
         key = get_key(config)
         if use_cache:
             response = cls._cache.get(key, None)
@@ -194,7 +195,7 @@ class Completion(openai_Completion):
                 cls._book_keeping(config, response)
                 return response
         openai_completion = (
-            ChatCompletionProxy
+            ChatCompletionProxy(chunk_callback)
             if config["model"].replace("gpt-35-turbo", "gpt-3.5-turbo") in cls.chat_models
                or issubclass(cls, ChatCompletion)
             else openai.Completion

@@ -669,11 +669,17 @@ class ConversableAgent(Agent):
             self._oai_messages.clear()
         else:
             self._oai_messages[agent].clear()
+
     def send_oai_chunk_to_socket(self, sender, chunk, first=False):
 
-       self.socket_client.emit({"room": self.sid, "authorName": sender.name,
-         "message": { "text": chunk, "first": first,
-                     "timestamp": datetime.datetime.now().timestamp() * 1000}})
+        self.socket_client.emit("message", {
+            "room": self.sid, "authorName": sender.name,
+            "message": {
+                "text": chunk,
+                "first": first,
+                "timestamp": datetime.datetime.now().timestamp() * 1000
+            }
+        })
 
     def generate_oai_reply(
             self,

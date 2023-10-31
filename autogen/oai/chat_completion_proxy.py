@@ -1,9 +1,14 @@
 import openai
 import tiktoken
 
-class ChatCompletionProxy():
-    @classmethod
-    def _prompt_tokens(cls, messages):
+
+class ChatCompletionProxy:
+
+    def __init__(self, callback):
+        self.callback = callback
+
+    @staticmethod
+    def _prompt_tokens(messages):
         # Get the encoding for OpenAI's "cl100k_base" model
         encoding = tiktoken.get_encoding("cl100k_base")
 
@@ -12,8 +17,7 @@ class ChatCompletionProxy():
         # encoding its content, and summing up the token counts.
         return sum([len(encoding.encode(msg['content'])) for msg in messages])
 
-    @classmethod
-    def create(cls, *args, **kwargs):
+    def create(self, *args, **kwargs):
         # Check if streaming is enabled in the function arguments
         if kwargs.get("stream", False):
             response_content = ""
@@ -28,8 +32,7 @@ class ChatCompletionProxy():
                     content = chunk["choices"][0].get("delta", {}).get("content")
                     # If content is present, print it to the terminal and update response variables
                     if content is not None:
-                        callback = kwargs.get("chunk_callback")
-                        callback(content, first)
+                        self.callback(content, first)
                         first = False
                         print(content, end='', flush=True)
                         response_content += content
@@ -45,7 +48,7 @@ class ChatCompletionProxy():
                 'content': response_content
             }
 
-            prompt_tokens = cls._prompt_tokens(kwargs["messages"])
+            prompt_tokens = self._prompt_tokens(kwargs["messages"])
             # Add usage information to the response
             response["usage"] = {
                 "prompt_tokens": prompt_tokens,
