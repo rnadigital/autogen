@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 from collections import defaultdict
 import copy
 import json
@@ -267,7 +268,7 @@ class ConversableAgent(Agent):
         else:
             return message
 
-    def _append_oai_message(self, message: Union[Dict, str], role, conversation_id: Agent) -> bool:
+    def _append_oai_message(self, message: Union[Dict, str, list], role, conversation_id: Agent) -> bool:
         """Append a message to the ChatCompletion conversation.
 
         If the message received is a string, it will be put in the "content" field of the new dictionary.
@@ -283,6 +284,8 @@ class ConversableAgent(Agent):
         Returns:
             bool: whether the message is appended to the ChatCompletion conversation.
         """
+        if isinstance(message, list):
+            message = "".join(message)
         message = self._message_to_dict(message)
         # create oai message to be appended to the oai conversation that can be passed to oai directly.
         oai_message = {k: message[k] for k in ("content", "function_call", "name", "context") if k in message}
@@ -300,7 +303,7 @@ class ConversableAgent(Agent):
 
     def send(
             self,
-            message: Union[Dict, str],
+            message: Union[Dict, str, list],
             recipient: Agent,
             request_reply: Optional[bool] = None,
             silent: Optional[bool] = False,
@@ -393,7 +396,7 @@ class ConversableAgent(Agent):
             await recipient.a_receive(message, self, request_reply, silent)
         else:
             raise ValueError(
-                "Message can't be converted into a valid ChatCompletion message. Either content or function_call must be provided."
+                "wher content or function_call must be provided."
             )
 
     def _send_to_socket(self, message: Union[Dict, str], sender: Agent):
@@ -405,24 +408,33 @@ class ConversableAgent(Agent):
                     self.socket_client.emit(
                         "message",
                         {"room": sid, "authorName": sender.name,
-                         "message": {"type": "function", "text": func_print}})
+                         "message": {"type": "function", "text": func_print,
+                                     "timestamp": datetime.datetime.now().timestamp() * 1000}})
                 elif "function_call" in message:
                     func_print = f"***** Suggested function Call: {message['function_call'].get('name', '(No function name found)')} *****"
                     self.socket_client.emit(
                         "message",
                         {"room": sid, "authorName": sender.name,
-                         "message": {"type": "function_call", "text": func_print}})
+                         "message": {"type": "function_call", "text": func_print,
+                                     "timestamp": datetime.datetime.now().timestamp() * 1000}})
                 elif message.get("content") is not None:
                     content = message.get("content")
+                    if content.strip().startswith("{"):
+                        return self.socket_client.emit(
+                            "message",
+                            {"room": sid, "authorName": sender.name,
+                             "message": {"type": "code", "language": "json",
+                                         "text": content,
+                                         "timestamp": datetime.datetime.now().timestamp() * 1000}})
                     code = extract_code(content)
                     if code:
                         if code[0][0] != UNKNOWN:
-                            print("===Code Detected===")
                             self.socket_client.emit(
                                 "message",
                                 {"room": sid, "authorName": sender.name,
                                  "message": {"type": "code", "language": code[0][0],
-                                             "text": code[0][1]}})
+                                             "text": code[0][1],
+                                             "timestamp": datetime.datetime.now().timestamp() * 1000}})
                     if "context" in message:
                         content = oai.ChatCompletion.instantiate(
                             content,
@@ -432,12 +444,14 @@ class ConversableAgent(Agent):
                         self.socket_client.emit(
                             "message",
                             {"room": sid, "authorName": sender.name,
-                             "message": {"type": "text", "text": content}})
+                             "message": {"type": "text", "text": content,
+                                         "timestamp": datetime.datetime.now().timestamp() * 1000}})
                     else:
                         self.socket_client.emit(
                             "message",
                             {"room": sid, "authorName": sender.name,
-                             "message": {"type": "text", "text": content}})
+                             "message": {"type": "text", "text": content,
+                                         "timestamp": datetime.datetime.now().timestamp() * 1000}})
             else:
                 raise Exception("Sockets Config missing although use_sockets is set to True")
         except Exception as e:
@@ -473,7 +487,8 @@ class ConversableAgent(Agent):
                 print(colored("*" * len(func_print), "green"), flush=True)
         print("\n", "-" * 80, flush=True, sep="")
 
-    def _process_received_message(self, message, sender, silent):
+    def _process_received_message(self, messages, sender, silent):
+        message = "".join(messages) if isinstance(messages, list) else messages
         message = self._message_to_dict(message)
         # When the agent receives a message, the role of the message is "user".
         # (If 'role' exists and is 'function', it will remain unchanged.)
@@ -486,13 +501,16 @@ class ConversableAgent(Agent):
         if not silent:
             match self.use_sockets:
                 case True:
-                    self._send_to_socket(message, sender)
+                    messages = [messages] if not isinstance(messages, list) else messages
+                    for m in messages:
+                        _m = self._message_to_dict(m)
+                        self._send_to_socket(_m, sender)
                 case False:
                     self._print_received_message(message, sender)
 
     def receive(
             self,
-            message: Union[Dict, str],
+            messages: Union[Dict, str, list],
             sender: Agent,
             request_reply: Optional[bool] = None,
             silent: Optional[bool] = False,
@@ -503,7 +521,7 @@ class ConversableAgent(Agent):
         The reply can be generated automatically or entered manually by a human.
 
         Args:
-            message (dict or str): message from the sender. If the type is dict, it may contain the following reserved fields (either content or function_call need to be provided).
+            messages (dict or str or list): message from the sender. If the type is dict, it may contain the following reserved fields (either content or function_call need to be provided).
                 1. "content": content of the message, can be None.
                 2. "function_call": a dictionary containing the function name and arguments.
                 3. "role": role of the message, can be "assistant", "user", "function".
@@ -519,7 +537,7 @@ class ConversableAgent(Agent):
         Raises:
             ValueError: if the message can't be converted into a valid ChatCompletion message.
         """
-        self._process_received_message(message, sender, silent)
+        self._process_received_message(messages, sender, silent)
         if request_reply is False or request_reply is None and self.reply_at_receive[sender] is False:
             return
         reply = self.generate_reply(messages=self.chat_messages[sender], sender=sender)
