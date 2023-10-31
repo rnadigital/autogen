@@ -3,6 +3,7 @@ import logging
 import openai
 import tiktoken
 from uuid import uuid4
+from datetime import datetime
 
 
 class ChatCompletionProxy:
@@ -32,11 +33,22 @@ class ChatCompletionProxy:
                         content = chunk["choices"][0].get("delta", {}).get("content")
                         # If content is present, print it to the terminal and update response variables
                         if content is not None:
-                            self.callback(content, message_uuid, first, 1)
+                            message = {
+                                "chunkId": message_uuid,
+                                "text": content,
+                                "first": first,
+                                "tokens": 1,
+                                "timestamp": datetime.now().timestamp() * 1000
+                            }
+                            self.callback("message", message)
                             first = False
                             response_content += content
                             completion_tokens += 1
-
+                # Send
+                self.callback(
+                    "message_complete",
+                    {"text": response_content,
+                     "chunkId": message_uuid})
                 # Prepare the final response object based on the accumulated data
                 response = chunk
                 response["choices"][0]["message"] = {
@@ -60,8 +72,8 @@ class ChatCompletionProxy:
             return response
         except Exception as e:
             logging.exception(e)
-            # content = "An error has occurred"
-            # message_uuid = None
-            # first = True
-            # # self.callback(content, message_uuid, first, 0)
+            content = "An error has occurred"
+            message_uuid = None
+            first = True
+            self.callback(content, message_uuid, first, 0)
             return None
