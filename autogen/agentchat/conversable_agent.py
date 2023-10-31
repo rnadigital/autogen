@@ -787,7 +787,9 @@ Press one of the buttons below or send a message to provide feedback:""", reply_
                 else:
                     # self.human_input_mode == "TERMINATE":
                     reply = self.get_human_input(
-                        f"Please give feedback to {sender.name}. Press enter or type 'exit' to stop the conversation: "
+                        f"""**{sender.name.replace("_", " ").title()}** is awaiting feedback.
+
+Press one of the buttons below or send a message to provide feedback:""", ["continue", "cancel"]
                     )
                     no_human_input_msg = "NO HUMAN INPUT RECEIVED." if not reply else ""
                     # if the human input is empty, and the message is a termination message, then we will terminate the conversation
