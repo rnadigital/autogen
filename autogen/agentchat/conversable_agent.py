@@ -765,8 +765,9 @@ class ConversableAgent(Agent):
         no_human_input_msg = ""
         if self.human_input_mode == "ALWAYS":
             reply = self.get_human_input(
-                f"Provide feedback to {sender.name}. Press enter to skip and use auto-reply, or type 'exit' to end the conversation: "
-            )
+                f"""**{sender.name.replace("_", " ").title()}** is awaiting feedback.
+
+Press one of the buttons below or send a message to provide feedback:""", ["exit", "continue", "cancel"])
             no_human_input_msg = "NO HUMAN INPUT RECEIVED." if not reply else ""
             # if the human input is empty, and the message is a termination message, then we will terminate the conversation
             reply = reply if reply or not self._is_termination_msg(message) else "exit"
@@ -777,11 +778,15 @@ class ConversableAgent(Agent):
                 else:
                     # self.human_input_mode == "TERMINATE":
                     terminate = self._is_termination_msg(message)
+                    reply_options = ["exit", "cancel"] if terminate else ["exit", "continue", "cancel"]
                     reply = self.get_human_input(
-                        f"Please give feedback to {sender.name}. Press enter or type 'exit' to stop the conversation: "
+                        f"""**{sender.name.replace("_", " ").title()}** is awaiting feedback.
+
+Press one of the buttons below or send a message to provide feedback:"""
                         if terminate
-                        else f"Please give feedback to {sender.name}. Press enter to skip and use auto-reply, or type 'exit' to stop the conversation: "
-                    )
+                        else f"""**{sender.name.replace("_", " ").title()}** is awaiting feedback.
+
+Press one of the buttons below or send a message to provide feedback:""", reply_options)
                     no_human_input_msg = "NO HUMAN INPUT RECEIVED." if not reply else ""
                     # if the human input is empty, and the message is a termination message, then we will terminate the conversation
                     reply = reply if reply or not terminate else "exit"
@@ -791,7 +796,9 @@ class ConversableAgent(Agent):
                 else:
                     # self.human_input_mode == "TERMINATE":
                     reply = self.get_human_input(
-                        f"Please give feedback to {sender.name}. Press enter or type 'exit' to stop the conversation: "
+                        f"""**{sender.name.replace("_", " ").title()}** is awaiting feedback.
+
+Press one of the buttons below or send a message to provide feedback:""", ["continue", "cancel"]
                     )
                     no_human_input_msg = "NO HUMAN INPUT RECEIVED." if not reply else ""
                     # if the human input is empty, and the message is a termination message, then we will terminate the conversation
@@ -950,7 +957,7 @@ class ConversableAgent(Agent):
         else:
             raise ValueError(f"Unsupported trigger type: {type(trigger)}")
 
-    def get_human_input(self, prompt: str) -> str:
+    def get_human_input(self, prompt: str, options: list[str]) -> str:
         """Get human input.
 
         Override this method to customize the way to get human input.
@@ -968,7 +975,7 @@ class ConversableAgent(Agent):
                     print("Custom input function...")
                     self.socket_client.emit(
                         "message",
-                        {"room": sid, "type": "text", "isFeedback": True, "message": prompt})
+                        {"room": sid, "type": "text", "isFeedback": True, "message": prompt, "options": options})
                     feedback = self.socket_client.receive()
                     return feedback[1]
                 except TimeoutError:
