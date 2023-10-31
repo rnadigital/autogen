@@ -677,7 +677,7 @@ class ConversableAgent(Agent):
             "room": self.sid,
             "authorName": sender.name,
             "message": {
-                "uuid": uuid,
+                "chunkId": uuid,
                 "text": chunk,
                 "first": first,
                 "tokens": token,
@@ -699,7 +699,7 @@ class ConversableAgent(Agent):
             messages = self._oai_messages[sender]
         # TODO: #1143 handle token limit exceeded error
         llm_config["stream"] = self.use_sockets
-        llm_config["chunk_callback"] = lambda chunk, uuid, token, first: self.send_oai_chunk_to_socket(sender, chunk,
+        llm_config["chunk_callback"] = lambda chunk, uuid, first, token: self.send_oai_chunk_to_socket(sender, chunk,
                                                                                                        uuid, first,
                                                                                                        token)
         response = oai.ChatCompletion.create(
