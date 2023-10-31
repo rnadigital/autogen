@@ -21,7 +21,7 @@ class ChatCompletionProxy:
             # Set the terminal text color to green for better visibility
             print("\033[32m", end='')
             first = True
-            message_uuid = uuid4()
+            message_uuid = str(uuid4())
             # Send the chat completion request to OpenAI's API and process the response in chunks
             for chunk in openai.ChatCompletion.create(*args, **kwargs):
                 if chunk["choices"]:
