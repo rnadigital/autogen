@@ -11,8 +11,10 @@ class ChatCompletionProxy:
         self.callback = callback
         self.encoding = tiktoken.get_encoding("cl100k_base")
 
-    def _prompt_tokens(self, message: str):
-        return len(self.encoding.encode(message))
+    @staticmethod
+    def _prompt_tokens(messages):
+        encoding = tiktoken.get_encoding("cl100k_base")
+        return sum([len(encoding.encode(msg['content'])) for msg in messages])
 
     def create(self, *args, **kwargs):
         try:
@@ -21,8 +23,6 @@ class ChatCompletionProxy:
                 response_content = ""
                 completion_tokens = 0
 
-                # Set the terminal text color to green for better visibility
-                print("\033[32m", end='')
                 first = True
                 message_uuid = str(uuid4())
                 chunk = {}
@@ -32,13 +32,10 @@ class ChatCompletionProxy:
                         content = chunk["choices"][0].get("delta", {}).get("content")
                         # If content is present, print it to the terminal and update response variables
                         if content is not None:
-                            self.callback(content, message_uuid, first, self._prompt_tokens(content))
+                            self.callback(content, message_uuid, first, 1)
                             first = False
                             response_content += content
                             completion_tokens += 1
-
-                # Reset the terminal text color
-                print("\033[0m\n")
 
                 # Prepare the final response object based on the accumulated data
                 response = chunk
