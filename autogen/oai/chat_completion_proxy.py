@@ -21,13 +21,16 @@ class ChatCompletionProxy():
 
             # Set the terminal text color to green for better visibility
             print("\033[32m", end='')
-
+            first = True
             # Send the chat completion request to OpenAI's API and process the response in chunks
             for chunk in openai.ChatCompletion.create(*args, **kwargs):
                 if chunk["choices"]:
                     content = chunk["choices"][0].get("delta", {}).get("content")
                     # If content is present, print it to the terminal and update response variables
                     if content is not None:
+                        callback = kwargs.get("chunk_callback")
+                        callback(content, first)
+                        first = False
                         print(content, end='', flush=True)
                         response_content += content
                         completion_tokens += 1

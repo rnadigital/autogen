@@ -669,6 +669,11 @@ class ConversableAgent(Agent):
             self._oai_messages.clear()
         else:
             self._oai_messages[agent].clear()
+    def send_oai_chunk_to_socket(self, sender, chunk, first=False):
+
+       self.socket_client.emit({"room": self.sid, "authorName": sender.name,
+         "message": { "text": chunk, "first": first,
+                     "timestamp": datetime.datetime.now().timestamp() * 1000}})
 
     def generate_oai_reply(
             self,
@@ -682,8 +687,9 @@ class ConversableAgent(Agent):
             return False, None
         if messages is None:
             messages = self._oai_messages[sender]
-
         # TODO: #1143 handle token limit exceeded error
+        llm_config["chunk_callback"] = lambda chunk, first: self.send_oai_chunk_to_socket(sender, chunk, first)
+        llm_config["stream"] = self.use_sockets
         response = oai.ChatCompletion.create(
             context=messages[-1].pop("context", None), messages=self._oai_system_message + messages, **llm_config
         )
