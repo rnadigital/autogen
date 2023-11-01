@@ -28,8 +28,6 @@ class ChatCompletionProxy:
                 first = True
                 message_uuid = str(uuid4())
                 chunk = {}
-                code_block = None
-                lang = None
                 # Send the chat completion request to OpenAI's API and process the response in chunks
                 for chunk in openai.ChatCompletion.create(*args, **kwargs):
                     if chunk["choices"]:
@@ -48,18 +46,22 @@ class ChatCompletionProxy:
                             response_content += content
                             completion_tokens += 1
 
-                is_code = extract_code(response_content)
-                if is_code and len(is_code) > 0:
-                    lang = is_code[0]
-                    code_block = is_code[1]
+                code_blocks = []
+                extracted_code = extract_code(response_content)
+                for elem in extracted_code:
+                    lang = elem[0]
+                    code_block = elem[1]
+                    code_blocks.append({
+                        "language": lang,
+                        "codeBlock": code_block
+                    })
 
                 # Send
                 self.callback(
                     "message_complete",
                     {"text": response_content,
                      "chunkId": message_uuid,
-                     "language": lang,
-                     "codeBlock": code_block})
+                     "codeBlocks": code_blocks})
                 # Prepare the final response object based on the accumulated data
                 response = chunk
                 response["choices"][0]["message"] = {
