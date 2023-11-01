@@ -86,5 +86,11 @@ class ChatCompletionProxy:
             content = "An error has occurred"
             message_uuid = None
             first = True
-            self.callback(content, message_uuid, first, 0)
+            self.callback("message", {
+                "chunkId": message_uuid,
+                "text": content,
+                "first": first,
+                "tokens": 0,
+                "timestamp": datetime.now().timestamp() * 1000
+            })
             return None
