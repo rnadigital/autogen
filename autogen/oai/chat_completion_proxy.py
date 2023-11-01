@@ -4,6 +4,7 @@ import openai
 import tiktoken
 from uuid import uuid4
 from datetime import datetime
+from autogen.code_utils import extract_code
 
 
 class ChatCompletionProxy:
@@ -23,10 +24,12 @@ class ChatCompletionProxy:
             if kwargs.get("stream", False):
                 response_content = ""
                 completion_tokens = 0
-
+                # Setting default values for variables
                 first = True
                 message_uuid = str(uuid4())
                 chunk = {}
+                code_block = None
+                lang = None
                 # Send the chat completion request to OpenAI's API and process the response in chunks
                 for chunk in openai.ChatCompletion.create(*args, **kwargs):
                     if chunk["choices"]:
@@ -44,11 +47,19 @@ class ChatCompletionProxy:
                             first = False
                             response_content += content
                             completion_tokens += 1
+
+                is_code = extract_code(response_content)
+                if is_code and len(is_code) > 0:
+                    lang = is_code[0]
+                    code_block = is_code[1]
+
                 # Send
                 self.callback(
                     "message_complete",
                     {"text": response_content,
-                     "chunkId": message_uuid})
+                     "chunkId": message_uuid,
+                     "language": lang,
+                     "codeBlock": code_block})
                 # Prepare the final response object based on the accumulated data
                 response = chunk
                 response["choices"][0]["message"] = {
