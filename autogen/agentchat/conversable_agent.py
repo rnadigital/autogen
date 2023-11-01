@@ -399,64 +399,6 @@ class ConversableAgent(Agent):
                 "where content or function_call must be provided."
             )
 
-    def _send_to_socket(self, message: Union[Dict, str], sender: Agent):
-        try:
-            if self.use_sockets:
-                sid = self.sid
-                if message.get("roles") == "function":
-                    func_print = f"***** Response from calling function \"{message['name']}\" *****"
-                    self.socket_client.emit(
-                        "message",
-                        {"room": sid, "authorName": sender.name,
-                         "message": {"type": "function", "text": func_print,
-                                     "timestamp": datetime.datetime.now().timestamp() * 1000}})
-                elif "function_call" in message:
-                    func_print = f"***** Suggested function Call: {message['function_call'].get('name', '(No function name found)')} *****"
-                    self.socket_client.emit(
-                        "message",
-                        {"room": sid, "authorName": sender.name,
-                         "message": {"type": "function_call", "text": func_print,
-                                     "timestamp": datetime.datetime.now().timestamp() * 1000}})
-                elif message.get("content") is not None:
-                    content = message.get("content")
-                    if content.strip().startswith("{"):
-                        return self.socket_client.emit(
-                            "message",
-                            {"room": sid, "authorName": sender.name,
-                             "message": {"type": "code", "language": "json",
-                                         "text": content,
-                                         "timestamp": datetime.datetime.now().timestamp() * 1000}})
-                    code = extract_code(content)
-                    if code:
-                        if code[0][0] != UNKNOWN:
-                            self.socket_client.emit(
-                                "message",
-                                {"room": sid, "authorName": sender.name,
-                                 "message": {"type": "code", "language": code[0][0],
-                                             "text": code[0][1],
-                                             "timestamp": datetime.datetime.now().timestamp() * 1000}})
-                    if "context" in message:
-                        content = oai.ChatCompletion.instantiate(
-                            content,
-                            message["context"],
-                            self.llm_config and self.llm_config.get("allow_format_str_template", False),
-                        )
-                        self.socket_client.emit(
-                            "message",
-                            {"room": sid, "authorName": sender.name,
-                             "message": {"type": "text", "text": content,
-                                         "timestamp": datetime.datetime.now().timestamp() * 1000}})
-                    else:
-                        self.socket_client.emit(
-                            "message",
-                            {"room": sid, "authorName": sender.name,
-                             "message": {"type": "text", "text": content,
-                                         "timestamp": datetime.datetime.now().timestamp() * 1000}})
-            else:
-                raise Exception("Sockets Config missing although use_sockets is set to True")
-        except Exception as e:
-            logging.exception(e)
-
     def _print_received_message(self, message: Union[Dict, str], sender: Agent):
         # print the message received
         print(colored(sender.name, "yellow"), "(to", f"{self.name}):\n", flush=True)
@@ -499,15 +441,7 @@ class ConversableAgent(Agent):
                 Either content or function_call must be provided."""
             )
         if not silent:
-            match self.use_sockets:
-                case True:
-                    # messages = [messages] if not isinstance(messages, list) else messages
-                    # for m in messages:
-                    #     _m = self._message_to_dict(m)
-                    #     self._send_to_socket(_m, sender)
-                    print("sending in chunks")
-                case False:
-                    self._print_received_message(message, sender)
+            self._print_received_message(message, sender)
 
     def receive(
             self,
@@ -671,10 +605,10 @@ class ConversableAgent(Agent):
         else:
             self._oai_messages[agent].clear()
 
-    def send_message_to_socket(self, event: str, sender: str, message: dict):
+    def send_message_to_socket(self, event: str, sender_name: str, message: dict):
         self.socket_client.emit(event, {
             "room": self.sid,
-            "authorName": sender,
+            "authorName": sender_name,
             "message": message
         })
 
@@ -691,8 +625,8 @@ class ConversableAgent(Agent):
         if messages is None:
             messages = self._oai_messages[sender]
         # TODO: #1143 handle token limit exceeded error
-        llm_config["stream"] = self.use_sockets
-        sender_name = sender.name if sender else "System"
+        llm_config["stream"] = self.use_sockets if sender else False # do not send message if the sender is None, that is it's an internal system message
+        sender_name = sender.name if sender else "system"
         llm_config["chunk_callback"] = lambda event, message: self.send_message_to_socket(event, sender_name, message)
 
         response = oai.ChatCompletion.create(
