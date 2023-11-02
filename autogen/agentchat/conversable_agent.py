@@ -745,23 +745,20 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
             print(colored(f"\n>>>>>>>> {no_human_input_msg}", "red"), flush=True)
 
         # stop the conversation
-        if reply in self.termination_words:
+        if reply.lower() in self.termination_words:
             # reset the consecutive_auto_reply_counter
             self._consecutive_auto_reply_counter[sender] = 0
             if self.use_sockets:
-                self.socket_client.emit("terminate",
-                                        {"room": self.sid,
-                                         "message": {"type": "termination", "sessionId": self.sid}})
+                self.socket_client.emit(
+                    "terminate",
+                    {"room": self.sid,
+                     "message": {"type": "termination", "sessionId": self.sid}})
             return True, None
 
         # send the human reply
         if reply or self._max_consecutive_auto_reply_dict[sender] == 0:
             # reset the consecutive_auto_reply_counter
             self._consecutive_auto_reply_counter[sender] = 0
-            # if self.use_sockets:
-            #     self.socket_client.emit("terminate",
-            #                             {"room": self.sid,
-            #                              "message": {"type": "termination", "sessionId": self.sid}})
             return True, reply
 
         # increment the consecutive_auto_reply_counter

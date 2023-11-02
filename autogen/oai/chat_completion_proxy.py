@@ -5,12 +5,13 @@ import tiktoken
 from uuid import uuid4
 from datetime import datetime
 from autogen.code_utils import extract_code
+from typing import Optional, Callable
 
 
 class ChatCompletionProxy:
 
-    def __init__(self, callback):
-        self.callback = callback
+    def __init__(self, send_to_socket: Optional[Callable]):
+        self.send_to_socket= send_to_socket
         self.encoding = tiktoken.get_encoding("cl100k_base")
 
     @staticmethod
@@ -41,7 +42,7 @@ class ChatCompletionProxy:
                                 "tokens": 1,
                                 "timestamp": datetime.now().timestamp() * 1000
                             }
-                            self.callback("message", message)
+                            self.send_to_socket("message", message)
                             first = False
                             response_content += content
                             completion_tokens += 1
@@ -88,7 +89,7 @@ class ChatCompletionProxy:
             content = "An error has occurred"
             message_uuid = None
             first = True
-            self.callback("message", {
+            self.send_to_socket("message", {
                 "chunkId": message_uuid,
                 "text": content,
                 "first": first,
