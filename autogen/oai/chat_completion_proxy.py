@@ -58,7 +58,7 @@ class ChatCompletionProxy:
                     })
 
                 # Send
-                self.callback(
+                self.send_to_socket(
                     "message_complete",
                     {"text": response_content,
                      "chunkId": message_uuid,
