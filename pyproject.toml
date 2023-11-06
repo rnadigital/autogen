@@ -19,6 +19,7 @@ tenacity = "^8.2.3"
 bs4 = "^0.0.1"
 arxiv = "^2.0.0"
 wikipedia = "^1.4.0"
+feedparser = "^6.0.10"
 
 [build-system]
 requires = ["poetry-core"]
