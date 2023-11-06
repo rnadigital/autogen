@@ -6,12 +6,18 @@ from uuid import uuid4
 from datetime import datetime
 from autogen.code_utils import extract_code
 from typing import Optional, Callable
+from openai.error import RateLimitError, InvalidRequestError
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_random_exponential,
+)
 
 
 class ChatCompletionProxy:
 
     def __init__(self, send_to_socket: Optional[Callable]):
-        self.send_to_socket= send_to_socket
+        self.send_to_socket = send_to_socket
         self.encoding = tiktoken.get_encoding("cl100k_base")
 
     @staticmethod
@@ -19,6 +25,7 @@ class ChatCompletionProxy:
         encoding = tiktoken.get_encoding("cl100k_base")
         return sum([len(encoding.encode(msg['content'])) for msg in messages])
 
+    @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
     def create(self, *args, **kwargs):
         try:
             # Check if streaming is enabled in the function arguments
@@ -84,6 +91,17 @@ class ChatCompletionProxy:
 
             # Return the final response object
             return response
+        except (InvalidRequestError, RateLimitError) as rle:
+            logging.exception(rle)
+            self.send_to_socket("message", {
+                "chunkId": None,
+                "text": "Rate limit reached. Retrying...",
+                "first": True,
+                "type": "error",
+                "tokens": 0,
+                "timestamp": datetime.now().timestamp() * 1000
+            })
+            return None
         except Exception as e:
             logging.exception(e)
             content = "An error has occurred"
