@@ -6,7 +6,7 @@ from uuid import uuid4
 from datetime import datetime
 from autogen.code_utils import extract_code
 from typing import Optional, Callable
-from openai.error import RateLimitError, InvalidRequestError
+from openai.error import RateLimitError, InvalidRequestError, AuthenticationError
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -91,6 +91,17 @@ class ChatCompletionProxy:
 
             # Return the final response object
             return response
+        except AuthenticationError as ae:
+            logging.warning(ae)
+            self.send_to_socket("message", {
+                "chunkId": None,
+                "text": "No API Key found. Please provide your OPENAI API Key to continue",
+                "first": True,
+                "type": "error",
+                "tokens": 0,
+                "timestamp": datetime.now().timestamp() * 1000
+            })
+            return None
         except (InvalidRequestError, RateLimitError) as rle:
             logging.exception(rle)
             self.send_to_socket("message", {
