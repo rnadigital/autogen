@@ -5,6 +5,8 @@ import copy
 import json
 import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from uuid import uuid4
+from datetime import datetime
 from autogen import oai
 from .agent import Agent
 from socketio.simple_client import SimpleClient
@@ -441,8 +443,8 @@ class ConversableAgent(Agent):
                 """Received message can't be converted into a valid ChatCompletion message. 
                 Either content or function_call must be provided."""
             )
-        if not silent:
-            self.speaker = sender.name
+        self.speaker = sender.name
+        if not silent and not self.use_sockets:
             self._print_received_message(message, sender)
 
     def receive(
@@ -627,7 +629,8 @@ class ConversableAgent(Agent):
         if messages is None:
             messages = self._oai_messages[sender]
         # TODO: #1143 handle token limit exceeded error
-        llm_config["stream"] = self.use_sockets if sender else False # do not send message if the sender is None, that is it's an internal system message
+        llm_config[
+            "stream"] = self.use_sockets if sender else False  # do not send message if the sender is None, that is it's an internal system message
         sender_name = self.speaker
         llm_config["chunk_callback"] = lambda event, message: self.send_message_to_socket(event, sender_name, message)
 
@@ -658,11 +661,20 @@ class ConversableAgent(Agent):
             code_blocks = extract_code(message["content"])
             if len(code_blocks) == 1 and code_blocks[0][0] == UNKNOWN:
                 continue
-
             # found code blocks, execute code and push "last_n_messages" back
             exitcode, logs = self.execute_code_blocks(code_blocks)
             code_execution_config["last_n_messages"] = last_n_messages
             exitcode2str = "execution succeeded" if exitcode == 0 else "execution failed"
+            if self.use_sockets:
+                message_uuid = str(uuid4())
+                self.send_message_to_socket("message", self.speaker, {
+                    "chunkId": message_uuid,
+                    "text": f"```bash{logs}```",
+                    "type": "logs",
+                    "first": True,
+                    "tokens": 0,
+                    "timestamp": datetime.now().timestamp() * 1000
+                })
             return True, f"exitcode: {exitcode} ({exitcode2str})\nCode output: {logs}"
 
         # no code blocks are found, push last_n_messages back and return.
@@ -974,6 +986,16 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
                     None,
                 )
                 # raise NotImplementedError
+            if self.use_sockets:
+                message_uuid = str(uuid4())
+                self.send_message_to_socket("message", self.speaker, {
+                    "chunkId": message_uuid,
+                    "text": f"```bash{logs}```",
+                    "type": "logs",
+                    "first": True,
+                    "tokens": 0,
+                    "timestamp": datetime.now().timestamp() * 1000
+                })
             if image is not None:
                 self._code_execution_config["use_docker"] = image
             logs_all += "\n" + logs
