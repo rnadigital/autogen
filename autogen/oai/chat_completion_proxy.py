@@ -95,7 +95,7 @@ class ChatCompletionProxy:
             logging.warning(ae)
             self.send_to_socket("message", {
                 "chunkId": None,
-                "text": "No API Key found. Please provide your OPENAI API Key to continue",
+                "text": "No API Key found. Please provide your OPENAI API Key to continue. For instructions please see our [README](https://github.com/rnadigital/agentcloud#getting-started)",
                 "first": True,
                 "type": "error",
                 "tokens": 0,
