@@ -129,6 +129,7 @@ class ConversableAgent(Agent):
         self.reply_at_receive = defaultdict(bool)
         self.use_sockets = use_sockets
         self.sid = sid
+        self.speaker = self.name
         self.termination_words = ["exit", "stop", "terminate", "done"]
         if self.use_sockets:
             self.socket_client = socket_client
@@ -441,6 +442,7 @@ class ConversableAgent(Agent):
                 Either content or function_call must be provided."""
             )
         if not silent:
+            self.speaker = sender.name
             self._print_received_message(message, sender)
 
     def receive(
@@ -626,7 +628,7 @@ class ConversableAgent(Agent):
             messages = self._oai_messages[sender]
         # TODO: #1143 handle token limit exceeded error
         llm_config["stream"] = self.use_sockets if sender else False # do not send message if the sender is None, that is it's an internal system message
-        sender_name = sender.name if sender else "system"
+        sender_name = self.speaker
         llm_config["chunk_callback"] = lambda event, message: self.send_message_to_socket(event, sender_name, message)
 
         response = oai.ChatCompletion.create(
