@@ -443,9 +443,10 @@ class ConversableAgent(Agent):
                 """Received message can't be converted into a valid ChatCompletion message. 
                 Either content or function_call must be provided."""
             )
-        self.speaker = sender.name
-        if not silent and not self.use_sockets:
-            self._print_received_message(message, sender)
+        if not silent:
+            self.speaker = sender.name
+            if not self.use_sockets:
+                self._print_received_message(message, sender)
 
     def receive(
             self,
