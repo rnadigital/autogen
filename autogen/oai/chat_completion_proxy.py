@@ -91,22 +91,21 @@ class ChatCompletionProxy:
 
             # Return the final response object
             return response
-        except AuthenticationError as ae:
-            logging.warning(ae)
-            self.send_to_socket("message", {
-                "chunkId": None,
-                "text": "No API Key found. Please provide your OPENAI API Key to continue. For instructions please see our [README](https://github.com/rnadigital/agentcloud#getting-started)",
-                "first": True,
-                "type": "error",
-                "tokens": 0,
-                "timestamp": datetime.now().timestamp() * 1000
-            })
-            return None
         except (InvalidRequestError, RateLimitError) as rle:
             logging.exception(rle)
             self.send_to_socket("message", {
                 "chunkId": None,
                 "text": "Rate limit reached. Retrying...",
+                "first": True,
+                "type": "error",
+                "tokens": 0,
+                "timestamp": datetime.now().timestamp() * 1000
+            })
+        except AuthenticationError as ae:
+            logging.warning(ae)
+            self.send_to_socket("message", {
+                "chunkId": None,
+                "text": "No API Key found. Please set your OPENAI key on your [account page](/account)",
                 "first": True,
                 "type": "error",
                 "tokens": 0,
