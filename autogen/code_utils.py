@@ -235,11 +235,10 @@ def execute_code(
         str: The error message if the code fails to execute; the stdout otherwise.
         image: The docker image name after container run when docker is used.
     """
-    try:
-        if all((code is None, filename is None)):
-            error_msg = f"Either {code=} or {filename=} must be provided."
-            logger.error(error_msg)
-            raise AssertionError(error_msg)
+    if all((code is None, filename is None)):
+        error_msg = f"Either {code=} or {filename=} must be provided."
+        logger.error(error_msg)
+        raise AssertionError(error_msg)
 
     # Warn if use_docker was unspecified (or None), and cannot be provided (the default).
     # In this case the current behavior is to fall back to run natively, but this behavior
