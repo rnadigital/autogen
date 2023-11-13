@@ -7,9 +7,9 @@ from datetime import datetime
 from autogen.code_utils import extract_code
 from typing import Optional, Callable
 if openai.__version__ < "1.1.0":
-    from openai.error import RateLimitError, InvalidRequestError, AuthenticationError
+    from openai.error import RateLimitError, AuthenticationError
 else:
-    from openai import RateLimitError, InvalidRequestError, AuthenticationError
+    from openai import RateLimitError, AuthenticationError
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -94,7 +94,7 @@ class ChatCompletionProxy:
 
             # Return the final response object
             return response
-        except (InvalidRequestError, RateLimitError) as rle:
+        except (RateLimitError) as rle:
             logging.exception(rle)
             self.send_to_socket("message", {
                 "chunkId": None,
