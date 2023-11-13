@@ -6,7 +6,10 @@ from uuid import uuid4
 from datetime import datetime
 from autogen.code_utils import extract_code
 from typing import Optional, Callable
-from openai.error import RateLimitError, InvalidRequestError, AuthenticationError
+if openai.__version__ < "1.1.0":
+    from openai.error import RateLimitError, InvalidRequestError, AuthenticationError
+else:
+    from openai import RateLimitError, InvalidRequestError, AuthenticationError
 from tenacity import (
     retry,
     stop_after_attempt,
