@@ -207,14 +207,6 @@ class Completion(openai_Completion):
         retry_wait_time = config.pop("retry_wait_time", cls.retry_wait_time)
         while True:
             try:
-                chunk_callback("message", {
-                    "chunkId": None,
-                    "text": f"Retrying in {retry_wait_time} seconds...",
-                    "first": True,
-                    "type": "error",
-                    "tokens": 0,
-                    "timestamp": datetime.now().timestamp() * 1000
-                })
                 if "request_timeout" in config:
                     response = openai_completion.create(**config)
                 else:
@@ -224,7 +216,14 @@ class Completion(openai_Completion):
                     APIConnectionError,
             ):
                 # transient error
-                logger.info(f"retrying in {retry_wait_time} seconds...", exc_info=1)
+                chunk_callback("message", {
+                    "chunkId": None,
+                    "text": f"Retrying in {retry_wait_time} seconds...",
+                    "first": True,
+                    "type": "error",
+                    "tokens": 0,
+                    "timestamp": datetime.now().timestamp() * 1000
+                })
                 sleep(retry_wait_time)
             except APIError as err:
                 error_code = err and err.json_body and isinstance(err.json_body, dict) and err.json_body.get("error")
@@ -232,7 +231,14 @@ class Completion(openai_Completion):
                 if error_code == "content_filter":
                     raise
                 # transient error
-                logger.info(f"retrying in {retry_wait_time} seconds...", exc_info=1)
+                chunk_callback("message", {
+                    "chunkId": None,
+                    "text": f"Retrying in {retry_wait_time} seconds...",
+                    "first": True,
+                    "type": "error",
+                    "tokens": 0,
+                    "timestamp": datetime.now().timestamp() * 1000
+                })
                 sleep(retry_wait_time)
             except (RateLimitError, Timeout) as err:
                 time_left = max_retry_period - (time.time() - start_time + retry_wait_time)
@@ -247,6 +253,14 @@ class Completion(openai_Completion):
                         request_timeout <<= 1
                     request_timeout = min(request_timeout, time_left)
                     logger.info(f"retrying in {retry_wait_time} seconds...", exc_info=1)
+                    chunk_callback("message", {
+                        "chunkId": None,
+                        "text": f"Rate limit reached. Retrying in {retry_wait_time} seconds...",
+                        "first": True,
+                        "type": "error",
+                        "tokens": 0,
+                        "timestamp": datetime.now().timestamp() * 1000
+                    })
                     sleep(retry_wait_time)
                 elif raise_on_ratelimit_or_timeout:
                     raise
