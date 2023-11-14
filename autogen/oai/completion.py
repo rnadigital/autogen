@@ -10,6 +10,7 @@ from flaml.tune.space import is_constant
 from flaml.automl.logger import logger_formatter
 from .openai_utils import get_key
 from .chat_completion_proxy import ChatCompletionProxy
+from datetime import datetime
 
 try:
     import openai
@@ -206,6 +207,14 @@ class Completion(openai_Completion):
         retry_wait_time = config.pop("retry_wait_time", cls.retry_wait_time)
         while True:
             try:
+                chunk_callback("message", {
+                    "chunkId": None,
+                    "text": f"Retrying in {retry_wait_time} seconds...",
+                    "first": True,
+                    "type": "error",
+                    "tokens": 0,
+                    "timestamp": datetime.now().timestamp() * 1000
+                })
                 if "request_timeout" in config:
                     response = openai_completion.create(**config)
                 else:
