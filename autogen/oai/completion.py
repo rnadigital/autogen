@@ -187,7 +187,7 @@ class Completion(openai_Completion):
         config = config.copy()
         openai.api_key_path = config.pop("api_key_path", openai.api_key_path)
         chunk_callback = config.pop("chunk_callback")
-        session_id = config.pop("sesison_id")
+        session_id = config.pop("session_id")
         key = get_key(config)
         if use_cache:
             response = cls._cache.get(key, None)
