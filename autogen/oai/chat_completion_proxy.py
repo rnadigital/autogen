@@ -140,6 +140,7 @@ class ChatCompletionProxy:
             self.send_to_socket("message", {
                 "chunkId": message_uuid,
                 "text": content,
+                "displayMessage": content,
                 "type": "error",
                 "first": first,
                 "tokens": 0,
