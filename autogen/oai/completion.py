@@ -803,6 +803,8 @@ class Completion(openai_Completion):
                         raise_on_ratelimit_or_timeout=i < last or raise_on_ratelimit_or_timeout,
                         **base_config,
                     )
+                    if response is None:
+                        raise
                     if response == -1:
                         return response
                     pass_filter = filter_func is None or filter_func(

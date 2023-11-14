@@ -120,6 +120,7 @@ class ChatCompletionProxy:
                 "tokens": 0,
                 "timestamp": datetime.now().timestamp() * 1000
             })
+            return None # Note: should this be something else?
         except AuthenticationError as ae:
             logging.warning(ae)
             self.send_to_socket("message", {
