@@ -804,7 +804,7 @@ class Completion(openai_Completion):
                         **base_config,
                     )
                     if response is None:
-                        raise
+                        return
                     if response == -1:
                         return response
                     pass_filter = filter_func is None or filter_func(
