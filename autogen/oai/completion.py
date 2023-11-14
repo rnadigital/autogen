@@ -9,7 +9,8 @@ from flaml import tune, BlendSearch
 from flaml.tune.space import is_constant
 from flaml.automl.logger import logger_formatter
 from .openai_utils import get_key
-from .chat_completion_proxy import ChatCompletionProxy
+from .chat_completion_proxy import ChatCompletionProxy, StopGeneratingException
+from datetime import datetime
 
 try:
     import openai
@@ -214,12 +215,32 @@ class Completion(openai_Completion):
                     response = openai_completion.create(**config)
                 else:
                     response = openai_completion.create(request_timeout=request_timeout, **config)
+            except StopGeneratingException as sge:
+                logging.exception(sge.args[0])
+                content = "Stopped generating."
+                chunk_callback("message", {
+                    "chunkId": None,
+                    "text": content,
+                    "displayMessage": content,
+                    "type": "error",
+                    "first": True,
+                    "tokens": 0,
+                    "timestamp": datetime.now().timestamp() * 1000
+                })
+                raise
             except (
                     ServiceUnavailableError,
                     APIConnectionError,
             ):
                 # transient error
-                logger.info(f"retrying in {retry_wait_time} seconds...", exc_info=1)
+                chunk_callback("message", {
+                    "chunkId": None,
+                    "text": f"Retrying in {retry_wait_time} seconds...",
+                    "first": True,
+                    "type": "error",
+                    "tokens": 0,
+                    "timestamp": datetime.now().timestamp() * 1000
+                })
                 sleep(retry_wait_time)
             except APIError as err:
                 error_code = err and err.json_body and isinstance(err.json_body, dict) and err.json_body.get("error")
@@ -227,7 +248,14 @@ class Completion(openai_Completion):
                 if error_code == "content_filter":
                     raise
                 # transient error
-                logger.info(f"retrying in {retry_wait_time} seconds...", exc_info=1)
+                chunk_callback("message", {
+                    "chunkId": None,
+                    "text": f"Retrying in {retry_wait_time} seconds...",
+                    "first": True,
+                    "type": "error",
+                    "tokens": 0,
+                    "timestamp": datetime.now().timestamp() * 1000
+                })
                 sleep(retry_wait_time)
             except (RateLimitError, Timeout) as err:
                 time_left = max_retry_period - (time.time() - start_time + retry_wait_time)
@@ -242,6 +270,14 @@ class Completion(openai_Completion):
                         request_timeout <<= 1
                     request_timeout = min(request_timeout, time_left)
                     logger.info(f"retrying in {retry_wait_time} seconds...", exc_info=1)
+                    chunk_callback("message", {
+                        "chunkId": None,
+                        "text": f"Rate limit reached. Retrying in {retry_wait_time} seconds...",
+                        "first": True,
+                        "type": "error",
+                        "tokens": 0,
+                        "timestamp": datetime.now().timestamp() * 1000
+                    })
                     sleep(retry_wait_time)
                 elif raise_on_ratelimit_or_timeout:
                     raise
