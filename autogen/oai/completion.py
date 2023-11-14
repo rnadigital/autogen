@@ -150,6 +150,9 @@ class Completion(openai_Completion):
     @classmethod
     def _book_keeping(cls, config: Dict, response):
         """Book keeping for the created completions."""
+        if response is None:
+            logging.error("Book keeping response is None")
+            return
         if response != -1 and "cost" not in response:
             response["cost"] = cls.cost(response)
         if cls._history_dict is None:
