@@ -18,6 +18,9 @@ from tenacity import (
 # Check the redis key for "stop generating" on every nth chunk
 NTH_CHUNK_CHECK = 5
 
+class StopGeneratingException(Exception):
+    pass
+
 class ChatCompletionProxy:
 
     def __init__(self, send_to_socket: Optional[Callable], session_id: Optional[str]):
@@ -52,7 +55,7 @@ class ChatCompletionProxy:
                     if chunk_index % NTH_CHUNK_CHECK == 0 and self.redis_client:
                         delete_return_value = self.redis_client.delete(f"{self.sid}_stop")
                         if delete_return_value == 1: # 1 indicates that it was deleted, so must have been set
-                            raise Exception(f"stop key was set, stopping generating")
+                            raise StopGeneratingException(f"stop key was set, stopping generating")
                     if chunk["choices"]:
                         content = chunk["choices"][0].get("delta", {}).get("content")
                         # If content is present, print it to the terminal and update response variables
@@ -127,6 +130,20 @@ class ChatCompletionProxy:
                 "timestamp": datetime.now().timestamp() * 1000
             })
             return None
+        except StopGeneratingException as sge:
+            logging.exception(e)
+            content = "Stopped generating."
+            message_uuid = None
+            first = True
+            self.send_to_socket("message", {
+                "chunkId": message_uuid,
+                "text": content,
+                "type": "error",
+                "first": first,
+                "tokens": 0,
+                "timestamp": datetime.now().timestamp() * 1000
+            })
+            return None
         except Exception as e:
             logging.exception(e)
             content = "An error has occurred"
@@ -135,6 +152,7 @@ class ChatCompletionProxy:
             self.send_to_socket("message", {
                 "chunkId": message_uuid,
                 "text": content,
+                "type": "error",
                 "first": first,
                 "tokens": 0,
                 "timestamp": datetime.now().timestamp() * 1000
