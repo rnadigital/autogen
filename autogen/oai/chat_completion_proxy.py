@@ -19,6 +19,7 @@ from tenacity import (
 NTH_CHUNK_CHECK = 5
 
 class StopGeneratingException(Exception):
+    """Specific exception raised when stop generating was requested by user"""
     pass
 
 class ChatCompletionProxy:
@@ -131,7 +132,7 @@ class ChatCompletionProxy:
             })
             return None
         except StopGeneratingException as sge:
-            logging.exception(e)
+            logging.exception(sge.args[0])
             content = "Stopped generating."
             message_uuid = None
             first = True
