@@ -9,16 +9,14 @@ from flaml import tune, BlendSearch
 from flaml.tune.space import is_constant
 from flaml.automl.logger import logger_formatter
 from .openai_utils import get_key
-from .chat_completion_proxy import ChatCompletionProxy, StopGeneratingException
-from datetime import datetime
+from collections import defaultdict
 
 try:
     import openai
-    from openai.error import (
-        ServiceUnavailableError,
+    from openai import (
         RateLimitError,
         APIError,
-        InvalidRequestError,
+        BadRequestError,
         APIConnectionError,
         Timeout,
         AuthenticationError,
@@ -27,9 +25,12 @@ try:
     import diskcache
 
     ERROR = None
-except ImportError:
-    ERROR = ImportError("please install openai and diskcache to use the autogen.oai subpackage.")
+    assert openai.__version__ < "1"
+except (AssertionError, ImportError):
     openai_Completion = object
+    # The autogen.Completion class requires openai<1
+    ERROR = AssertionError("(Deprecated) The autogen.Completion class requires openai<1 and diskcache. ")
+
 logger = logging.getLogger(__name__)
 if not logger.handlers:
     # Add the console handler.
@@ -39,7 +40,7 @@ if not logger.handlers:
 
 
 class Completion(openai_Completion):
-    """A class for OpenAI completion API.
+    """(openai<1) A class for OpenAI completion API.
 
     It also supports: ChatCompletion, Azure OpenAI API.
     """
@@ -52,6 +53,7 @@ class Completion(openai_Completion):
         "gpt-3.5-turbo-16k",
         "gpt-3.5-turbo-16k-0613",
         "gpt-35-turbo",
+        "gpt-35-turbo-16k",
         "gpt-4",
         "gpt-4-32k",
         "gpt-4-32k-0314",  # deprecate in Sep
@@ -70,11 +72,14 @@ class Completion(openai_Completion):
         "text-davinci-002": 0.02,
         "text-davinci-003": 0.02,
         "gpt-3.5-turbo": (0.0015, 0.002),
+        "gpt-3.5-turbo-instruct": (0.0015, 0.002),
         "gpt-3.5-turbo-0301": (0.0015, 0.002),  # deprecate in Sep
         "gpt-3.5-turbo-0613": (0.0015, 0.002),
         "gpt-3.5-turbo-16k": (0.003, 0.004),
         "gpt-3.5-turbo-16k-0613": (0.003, 0.004),
-        "gpt-35-turbo": 0.002,
+        "gpt-35-turbo": (0.0015, 0.002),
+        "gpt-35-turbo-16k": (0.003, 0.004),
+        "gpt-35-turbo-instruct": (0.0015, 0.002),
         "gpt-4": (0.03, 0.06),
         "gpt-4-32k": (0.06, 0.12),
         "gpt-4-0314": (0.03, 0.06),  # deprecate in Sep
@@ -104,8 +109,8 @@ class Completion(openai_Completion):
         "prompt": "{prompt}",
     }
 
-    seed = 41
-    cache_path = f".cache/{seed}"
+    cache_seed = 41
+    cache_path = f".cache/{cache_seed}"
     # retry after this many seconds
     retry_wait_time = 10
     # fail a request after hitting RateLimitError for this many seconds
@@ -129,7 +134,7 @@ class Completion(openai_Completion):
             cache_path (str, Optional): The root path for the cache.
                 The complete cache path will be {cache_path}/{seed}.
         """
-        cls.seed = seed
+        cls.cache_seed = seed
         cls.cache_path = f"{cache_path_root}/{seed}"
 
     @classmethod
@@ -140,7 +145,7 @@ class Completion(openai_Completion):
             seed (int, Optional): The integer identifier for the pseudo seed.
                 If omitted, all caches under cache_path_root will be cleared.
             cache_path (str, Optional): The root path for the cache.
-                The complete cache path will be {cache_path}/{seed}.
+                The complete cache path will be {cache_path}/{cache_seed}.
         """
         if seed is None:
             shutil.rmtree(cache_path_root, ignore_errors=True)
@@ -151,9 +156,6 @@ class Completion(openai_Completion):
     @classmethod
     def _book_keeping(cls, config: Dict, response):
         """Book keeping for the created completions."""
-        if response is None:
-            logging.error("Book keeping response is None")
-            return
         if response != -1 and "cost" not in response:
             response["cost"] = cls.cost(response)
         if cls._history_dict is None:
@@ -162,6 +164,7 @@ class Completion(openai_Completion):
             value = {
                 "created_at": [],
                 "cost": [],
+                "token_count": [],
             }
             if "messages" in config:
                 messages = config["messages"]
@@ -173,6 +176,14 @@ class Completion(openai_Completion):
                 key = get_key([config["prompt"]] + [choice.get("text") for choice in response["choices"]])
             value["created_at"].append(cls._count_create)
             value["cost"].append(response["cost"])
+            value["token_count"].append(
+                {
+                    "model": response["model"],
+                    "prompt_tokens": response["usage"]["prompt_tokens"],
+                    "completion_tokens": response["usage"].get("completion_tokens", 0),
+                    "total_tokens": response["usage"]["total_tokens"],
+                }
+            )
             cls._history_dict[key] = value
             cls._count_create += 1
             return
@@ -183,15 +194,12 @@ class Completion(openai_Completion):
         cls._count_create += 1
 
     @classmethod
-    def _get_response(cls, config: Dict, raise_on_ratelimit_or_timeout=False, use_cache=False):
+    def _get_response(cls, config: Dict, raise_on_ratelimit_or_timeout=False, use_cache=True):
         """Get the response from the openai api call.
 
         Try cache first. If not found, call the openai api. If the api call fails, retry after retry_wait_time.
         """
         config = config.copy()
-        openai.api_key_path = config.pop("api_key_path", openai.api_key_path)
-        chunk_callback = config.pop("chunk_callback")
-        session_id = config.pop("session_id")
         key = get_key(config)
         if use_cache:
             response = cls._cache.get(key, None)
@@ -200,9 +208,9 @@ class Completion(openai_Completion):
                 cls._book_keeping(config, response)
                 return response
         openai_completion = (
-            ChatCompletionProxy(chunk_callback, session_id)
+            openai.ChatCompletion
             if config["model"].replace("gpt-35-turbo", "gpt-3.5-turbo") in cls.chat_models
-               or issubclass(cls, ChatCompletion)
+            or issubclass(cls, ChatCompletion)
             else openai.Completion
         )
         start_time = time.time()
@@ -215,32 +223,9 @@ class Completion(openai_Completion):
                     response = openai_completion.create(**config)
                 else:
                     response = openai_completion.create(request_timeout=request_timeout, **config)
-            except StopGeneratingException as sge:
-                logging.exception(sge.args[0])
-                content = "Stopped generating."
-                chunk_callback("message", {
-                    "chunkId": None,
-                    "text": content,
-                    "displayMessage": content,
-                    "type": "error",
-                    "first": True,
-                    "tokens": 0,
-                    "timestamp": datetime.now().timestamp() * 1000
-                })
-                raise
-            except (
-                    ServiceUnavailableError,
-                    APIConnectionError,
-            ):
+            except APIConnectionError:
                 # transient error
-                chunk_callback("message", {
-                    "chunkId": None,
-                    "text": f"Retrying in {retry_wait_time} seconds...",
-                    "first": True,
-                    "type": "error",
-                    "tokens": 0,
-                    "timestamp": datetime.now().timestamp() * 1000
-                })
+                logger.info(f"retrying in {retry_wait_time} seconds...", exc_info=1)
                 sleep(retry_wait_time)
             except APIError as err:
                 error_code = err and err.json_body and isinstance(err.json_body, dict) and err.json_body.get("error")
@@ -248,36 +233,21 @@ class Completion(openai_Completion):
                 if error_code == "content_filter":
                     raise
                 # transient error
-                chunk_callback("message", {
-                    "chunkId": None,
-                    "text": f"Retrying in {retry_wait_time} seconds...",
-                    "first": True,
-                    "type": "error",
-                    "tokens": 0,
-                    "timestamp": datetime.now().timestamp() * 1000
-                })
+                logger.info(f"retrying in {retry_wait_time} seconds...", exc_info=1)
                 sleep(retry_wait_time)
             except (RateLimitError, Timeout) as err:
                 time_left = max_retry_period - (time.time() - start_time + retry_wait_time)
                 if (
-                        time_left > 0
-                        and isinstance(err, RateLimitError)
-                        or time_left > request_timeout
-                        and isinstance(err, Timeout)
-                        and "request_timeout" not in config
+                    time_left > 0
+                    and isinstance(err, RateLimitError)
+                    or time_left > request_timeout
+                    and isinstance(err, Timeout)
+                    and "request_timeout" not in config
                 ):
                     if isinstance(err, Timeout):
                         request_timeout <<= 1
                     request_timeout = min(request_timeout, time_left)
                     logger.info(f"retrying in {retry_wait_time} seconds...", exc_info=1)
-                    chunk_callback("message", {
-                        "chunkId": None,
-                        "text": f"Rate limit reached. Retrying in {retry_wait_time} seconds...",
-                        "first": True,
-                        "type": "error",
-                        "tokens": 0,
-                        "timestamp": datetime.now().timestamp() * 1000
-                    })
                     sleep(retry_wait_time)
                 elif raise_on_ratelimit_or_timeout:
                     raise
@@ -289,7 +259,7 @@ class Completion(openai_Completion):
                         f"Failed to get response from openai api due to getting RateLimitError or Timeout for {max_retry_period} seconds."
                     )
                     return response
-            except InvalidRequestError:
+            except BadRequestError:
                 if "azure" in config.get("api_type", openai.api_type) and "model" in config:
                     # azure api uses "engine" instead of "model"
                     config["engine"] = config.pop("model").replace("gpt-3.5-turbo", "gpt-35-turbo")
@@ -479,10 +449,10 @@ class Completion(openai_Completion):
                     result["cost"] = cost
                     return result
                 if (
-                        prune
-                        and target_output_tokens
-                        and avg_n_tokens <= target_output_tokens * (1 - ratio)
-                        and (num_completions < config_n or num_completions == config_n and data_limit == data_length)
+                    prune
+                    and target_output_tokens
+                    and avg_n_tokens <= target_output_tokens * (1 - ratio)
+                    and (num_completions < config_n or num_completions == config_n and data_limit == data_length)
                 ):
                     # update valid n
                     cls._max_valid_n_per_max_tokens[region_key] = valid_n = cls._max_valid_n_per_max_tokens.get(
@@ -520,8 +490,8 @@ class Completion(openai_Completion):
                     cls.avg_input_tokens = np.mean(input_tokens)
                     if prune:
                         target_output_tokens = (
-                                                       inference_budget * 1000 - cls.avg_input_tokens * price_input
-                                               ) / price_output
+                            inference_budget * 1000 - cls.avg_input_tokens * price_input
+                        ) / price_output
                 result["inference_cost"] = (avg_n_tokens * price_output + cls.avg_input_tokens * price_input) / 1000
                 break
             else:
@@ -536,17 +506,17 @@ class Completion(openai_Completion):
 
     @classmethod
     def tune(
-            cls,
-            data: List[Dict],
-            metric: str,
-            mode: str,
-            eval_func: Callable,
-            log_file_name: Optional[str] = None,
-            inference_budget: Optional[float] = None,
-            optimization_budget: Optional[float] = None,
-            num_samples: Optional[int] = 1,
-            logging_level: Optional[int] = logging.WARNING,
-            **config,
+        cls,
+        data: List[Dict],
+        metric: str,
+        mode: str,
+        eval_func: Callable,
+        log_file_name: Optional[str] = None,
+        inference_budget: Optional[float] = None,
+        optimization_budget: Optional[float] = None,
+        num_samples: Optional[int] = 1,
+        logging_level: Optional[int] = logging.WARNING,
+        **config,
     ):
         """Tune the parameters for the OpenAI API call.
 
@@ -600,6 +570,10 @@ class Completion(openai_Completion):
             dict: The optimized hyperparameter setting.
             tune.ExperimentAnalysis: The tuning results.
         """
+        logger.warning(
+            "tuning via Completion.tune is deprecated in pyautogen v0.2 and openai>=1. "
+            "flaml.tune supports tuning more generically."
+        )
         if ERROR:
             raise ERROR
         space = cls.default_search_space.copy()
@@ -732,14 +706,14 @@ class Completion(openai_Completion):
 
     @classmethod
     def create(
-            cls,
-            context: Optional[Dict] = None,
-            use_cache: Optional[bool] = True,
-            config_list: Optional[List[Dict]] = None,
-            filter_func: Optional[Callable[[Dict, Dict, Dict], bool]] = None,
-            raise_on_ratelimit_or_timeout: Optional[bool] = True,
-            allow_format_str_template: Optional[bool] = False,
-            **config,
+        cls,
+        context: Optional[Dict] = None,
+        use_cache: Optional[bool] = True,
+        config_list: Optional[List[Dict]] = None,
+        filter_func: Optional[Callable[[Dict, Dict], bool]] = None,
+        raise_on_ratelimit_or_timeout: Optional[bool] = True,
+        allow_format_str_template: Optional[bool] = False,
+        **config,
     ):
         """Make a completion for a given context.
 
@@ -763,18 +737,18 @@ class Completion(openai_Completion):
                     "model": "gpt-4",
                     "api_key": os.environ.get("AZURE_OPENAI_API_KEY"),
                     "api_type": "azure",
-                    "api_base": os.environ.get("AZURE_OPENAI_API_BASE"),
+                    "base_url": os.environ.get("AZURE_OPENAI_API_BASE"),
                     "api_version": "2023-03-15-preview",
                 },
                 {
                     "model": "gpt-3.5-turbo",
                     "api_key": os.environ.get("OPENAI_API_KEY"),
                     "api_type": "open_ai",
-                    "api_base": "https://api.openai.com/v1",
+                    "base_url": "https://api.openai.com/v1",
                 },
                 {
                     "model": "llama-7B",
-                    "api_base": "http://127.0.0.1:8080",
+                    "base_url": "http://127.0.0.1:8080",
                     "api_type": "open_ai",
                 }
             ],
@@ -782,7 +756,7 @@ class Completion(openai_Completion):
         )
         ```
 
-            filter_func (Callable, Optional): A function that takes in the context, the config and the response and returns a boolean to indicate whether the response is valid. E.g.,
+            filter_func (Callable, Optional): A function that takes in the context and the response and returns a boolean to indicate whether the response is valid. E.g.,
 
         ```python
         def yes_or_no_filter(context, config, response):
@@ -799,7 +773,7 @@ class Completion(openai_Completion):
                 Besides the parameters for the openai API call, it can also contain:
                 - `max_retry_period` (int): the total time (in seconds) allowed for retrying failed requests.
                 - `retry_wait_time` (int): the time interval to wait (in seconds) before retrying a failed request.
-                - `seed` (int) for the cache. This is useful when implementing "controlled randomness" for the completion.
+                - `cache_seed` (int) for the cache. This is useful when implementing "controlled randomness" for the completion.
 
         Returns:
             Responses from OpenAI API, with additional fields.
@@ -808,13 +782,13 @@ class Completion(openai_Completion):
                 - `config_id`: the index of the config in the config_list that is used to generate the response.
                 - `pass_filter`: whether the response passes the filter function. None if no filter is provided.
         """
+        logger.warning(
+            "Completion.create is deprecated in pyautogen v0.2 and openai>=1. "
+            "The new openai requires initiating a client for inference. "
+            "Please refer to https://microsoft.github.io/autogen/docs/Use-Cases/enhanced_inference#api-unification"
+        )
         if ERROR:
             raise ERROR
-            # Warn if a config list was provided but was empty
-        if type(config_list) is list and len(config_list) == 0:
-            logger.warning(
-                "Completion was provided with a config_list, but the list was empty. Adopting default OpenAI behavior, which reads from the 'model' parameter instead."
-            )
 
         # Warn if a config list was provided but was empty
         if type(config_list) is list and len(config_list) == 0:
@@ -839,20 +813,16 @@ class Completion(openai_Completion):
                         raise_on_ratelimit_or_timeout=i < last or raise_on_ratelimit_or_timeout,
                         **base_config,
                     )
-                    if response is None:
-                        return
                     if response == -1:
                         return response
-                    pass_filter = filter_func is None or filter_func(
-                        context=context, base_config=config, response=response
-                    )
+                    pass_filter = filter_func is None or filter_func(context=context, response=response)
                     if pass_filter or i == last:
                         response["cost"] = cost + response["cost"]
                         response["config_id"] = i
                         response["pass_filter"] = pass_filter
                         return response
                     cost += response["cost"]
-                except (AuthenticationError, RateLimitError, Timeout, InvalidRequestError):
+                except (AuthenticationError, RateLimitError, Timeout, BadRequestError):
                     logger.debug(f"failed with config {i}", exc_info=1)
                     if i == last:
                         raise
@@ -861,19 +831,19 @@ class Completion(openai_Completion):
             return cls._get_response(
                 params, raise_on_ratelimit_or_timeout=raise_on_ratelimit_or_timeout, use_cache=False
             )
-        seed = cls.seed
-        if "seed" in params:
-            cls.set_cache(params.pop("seed"))
+        cache_seed = cls.cache_seed
+        if "cache_seed" in params:
+            cls.set_cache(params.pop("cache_seed"))
         with diskcache.Cache(cls.cache_path) as cls._cache:
-            cls.set_cache(seed)
+            cls.set_cache(cache_seed)
             return cls._get_response(params, raise_on_ratelimit_or_timeout=raise_on_ratelimit_or_timeout)
 
     @classmethod
     def instantiate(
-            cls,
-            template: Union[str, None],
-            context: Optional[Dict] = None,
-            allow_format_str_template: Optional[bool] = False,
+        cls,
+        template: Union[str, None],
+        context: Optional[Dict] = None,
+        allow_format_str_template: Optional[bool] = False,
     ):
         if not context or template is None:
             return template
@@ -921,14 +891,14 @@ class Completion(openai_Completion):
 
     @classmethod
     def test(
-            cls,
-            data,
-            eval_func=None,
-            use_cache=True,
-            agg_method="avg",
-            return_responses_and_per_instance_result=False,
-            logging_level=logging.WARNING,
-            **config,
+        cls,
+        data,
+        eval_func=None,
+        use_cache=True,
+        agg_method="avg",
+        return_responses_and_per_instance_result=False,
+        logging_level=logging.WARNING,
+        **config,
     ):
         """Evaluate the responses created with the config for the OpenAI API call.
 
@@ -979,7 +949,7 @@ class Completion(openai_Completion):
             return_responses_and_per_instance_result (bool): Whether to also return responses
                 and per instance results in addition to the aggregated results.
             logging_level (optional): logging level. Defaults to logging.WARNING.
-            **config (dict): parameters passed to the openai api call `create()`.
+            **config (dict): parametes passed to the openai api call `create()`.
 
         Returns:
             None when no valid eval_func is provided in either test or tune;
@@ -1065,7 +1035,7 @@ class Completion(openai_Completion):
         Returns:
             The cost in USD. 0 if the model is not supported.
         """
-        model = response["model"]
+        model = response.get("model")
         if model not in cls.price1K:
             return 0
             # raise ValueError(f"Unknown model: {model}")
@@ -1117,9 +1087,46 @@ class Completion(openai_Completion):
         return cls._history_dict
 
     @classmethod
+    def print_usage_summary(cls) -> Dict:
+        """Return the usage summary."""
+        if cls._history_dict is None:
+            print("No usage summary available.", flush=True)
+
+        token_count_summary = defaultdict(lambda: {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
+
+        if not cls._history_compact:
+            source = cls._history_dict.values()
+            total_cost = sum(msg_pair["response"]["cost"] for msg_pair in source)
+        else:
+            # source = cls._history_dict["token_count"]
+            # total_cost = sum(cls._history_dict['cost'])
+            total_cost = sum(sum(value_list["cost"]) for value_list in cls._history_dict.values())
+            source = (
+                token_data for value_list in cls._history_dict.values() for token_data in value_list["token_count"]
+            )
+
+        for entry in source:
+            if not cls._history_compact:
+                model = entry["response"]["model"]
+                token_data = entry["response"]["usage"]
+            else:
+                model = entry["model"]
+                token_data = entry
+
+            token_count_summary[model]["prompt_tokens"] += token_data["prompt_tokens"]
+            token_count_summary[model]["completion_tokens"] += token_data["completion_tokens"]
+            token_count_summary[model]["total_tokens"] += token_data["total_tokens"]
+
+        print(f"Total cost: {total_cost}", flush=True)
+        for model, counts in token_count_summary.items():
+            print(
+                f"Token count summary for model {model}: prompt_tokens: {counts['prompt_tokens']}, completion_tokens: {counts['completion_tokens']}, total_tokens: {counts['total_tokens']}",
+                flush=True,
+            )
+
+    @classmethod
     def start_logging(
-            cls, history_dict: Optional[Dict] = None, compact: Optional[bool] = True,
-            reset_counter: Optional[bool] = True
+        cls, history_dict: Optional[Dict] = None, compact: Optional[bool] = True, reset_counter: Optional[bool] = True
     ):
         """Start book keeping.
 
@@ -1164,6 +1171,12 @@ class Completion(openai_Completion):
                 while the compact history dict has a linear size.
             reset_counter (bool): whether to reset the counter of the number of API calls.
         """
+        logger.warning(
+            "logging via Completion.start_logging is deprecated in pyautogen v0.2. "
+            "logging via OpenAIWrapper will be added back in a future release."
+        )
+        if ERROR:
+            raise ERROR
         cls._history_dict = {} if history_dict is None else history_dict
         cls._history_compact = compact
         cls._count_create = 0 if reset_counter or cls._count_create is None else cls._count_create
@@ -1175,7 +1188,7 @@ class Completion(openai_Completion):
 
 
 class ChatCompletion(Completion):
-    """A class for OpenAI API ChatCompletion. Share the same API as Completion."""
+    """(openai<1) A class for OpenAI API ChatCompletion. Share the same API as Completion."""
 
     default_search_space = Completion.default_search_space.copy()
     default_search_space["model"] = tune.choice(["gpt-3.5-turbo", "gpt-4"])

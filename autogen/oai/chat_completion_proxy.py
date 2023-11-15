@@ -8,6 +8,7 @@ from datetime import datetime
 from autogen.code_utils import extract_code
 from typing import Optional, Callable
 import redis
+from redis.connection import Connection
 
 # Check the redis key for "stop generating" on every nth chunk
 NTH_CHUNK_CHECK = 5
@@ -26,7 +27,7 @@ class ChatCompletionProxy:
         self.encoding = tiktoken.get_encoding("cl100k_base")
         try:
             # TODO: make redis port an env?
-            self.redis_client = redis.Redis(host=os.environ.get("REDIS_HOST"), port=6379, decode_responses=True)
+            self.redis_client: redis.Redis = redis.Redis(host=os.environ.get("REDIS_HOST"), port=6379, decode_responses=True)
         except Exception as e:
             logging.error(f"Failed to create self.redis_client: {e}")
             self.redis_client = None
