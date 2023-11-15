@@ -9,7 +9,7 @@ from flaml import tune, BlendSearch
 from flaml.tune.space import is_constant
 from flaml.automl.logger import logger_formatter
 from .openai_utils import get_key
-from .chat_completion_proxy import ChatCompletionProxy
+from .chat_completion_proxy import ChatCompletionProxy, StopGeneratingException
 from datetime import datetime
 
 try:
@@ -151,6 +151,9 @@ class Completion(openai_Completion):
     @classmethod
     def _book_keeping(cls, config: Dict, response):
         """Book keeping for the created completions."""
+        if response is None:
+            logging.error("Book keeping response is None")
+            return
         if response != -1 and "cost" not in response:
             response["cost"] = cls.cost(response)
         if cls._history_dict is None:
@@ -188,6 +191,7 @@ class Completion(openai_Completion):
         config = config.copy()
         openai.api_key_path = config.pop("api_key_path", openai.api_key_path)
         chunk_callback = config.pop("chunk_callback")
+        session_id = config.pop("session_id")
         key = get_key(config)
         if use_cache:
             response = cls._cache.get(key, None)
@@ -196,7 +200,7 @@ class Completion(openai_Completion):
                 cls._book_keeping(config, response)
                 return response
         openai_completion = (
-            ChatCompletionProxy(chunk_callback)
+            ChatCompletionProxy(chunk_callback, session_id)
             if config["model"].replace("gpt-35-turbo", "gpt-3.5-turbo") in cls.chat_models
                or issubclass(cls, ChatCompletion)
             else openai.Completion
@@ -211,6 +215,19 @@ class Completion(openai_Completion):
                     response = openai_completion.create(**config)
                 else:
                     response = openai_completion.create(request_timeout=request_timeout, **config)
+            except StopGeneratingException as sge:
+                logging.exception(sge.args[0])
+                content = "Stopped generating."
+                chunk_callback("message", {
+                    "chunkId": None,
+                    "text": content,
+                    "displayMessage": content,
+                    "type": "error",
+                    "first": True,
+                    "tokens": 0,
+                    "timestamp": datetime.now().timestamp() * 1000
+                })
+                raise
             except (
                     ServiceUnavailableError,
                     APIConnectionError,
@@ -822,6 +839,8 @@ class Completion(openai_Completion):
                         raise_on_ratelimit_or_timeout=i < last or raise_on_ratelimit_or_timeout,
                         **base_config,
                     )
+                    if response is None:
+                        return
                     if response == -1:
                         return response
                     pass_filter = filter_func is None or filter_func(
