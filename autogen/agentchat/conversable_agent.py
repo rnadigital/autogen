@@ -634,6 +634,7 @@ class ConversableAgent(Agent):
             "stream"] = self.use_sockets if sender else False  # do not send message if the sender is None, that is it's an internal system message
         sender_name = self.speaker
         llm_config["chunk_callback"] = lambda event, message: self.send_message_to_socket(event, sender_name, message)
+        llm_config["session_id"] = self.sid # Used by ChatCompletionProxy down the line to read a redis ket
 
         response = oai.ChatCompletion.create(
             context=messages[-1].pop("context", None), messages=self._oai_system_message + messages, **llm_config
