@@ -8,7 +8,6 @@ from datetime import datetime
 from autogen.code_utils import extract_code
 from typing import Optional, Callable
 import redis
-from redis.connection import Connection
 
 # Check the redis key for "stop generating" on every nth chunk
 NTH_CHUNK_CHECK = 5

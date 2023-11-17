@@ -6,9 +6,11 @@ from typing import List, Optional, Dict, Callable
 import logging
 import inspect
 from flaml.automl.logger import logger_formatter
-
+from datetime import datetime
 from autogen.oai.openai_utils import get_key
 from autogen.token_count_utils import count_token
+from uuid import uuid4
+from autogen.code_utils import extract_code
 
 try:
     from openai import OpenAI, APIError
@@ -28,6 +30,14 @@ if not logger.handlers:
     _ch = logging.StreamHandler(stream=sys.stdout)
     _ch.setFormatter(logger_formatter)
     logger.addHandler(_ch)
+
+# Check the redis key for "stop generating" on every nth chunk
+NTH_CHUNK_CHECK = 5
+
+
+class StopGeneratingException(Exception):
+    """Specific exception raised when stop generating was requested by user"""
+    pass
 
 
 class OpenAIWrapper:
@@ -82,6 +92,14 @@ class OpenAIWrapper:
         else:
             self._clients = [self._client(extra_kwargs, openai_config)]
             self._config_list = [extra_kwargs]
+
+        try:
+            # TODO: make redis port an env?
+            self.redis_client: redis.Redis = redis.Redis(host=os.environ.get("REDIS_HOST"), port=6379,
+                                                         decode_responses=True)
+        except Exception as e:
+            logging.error(f"Failed to create self.redis_client: {e}")
+            self.redis_client = None
 
     def _process_for_azure(self, config: Dict, extra_kwargs: Dict, segment: str = "default"):
         # deal with api_version
@@ -140,10 +158,10 @@ class OpenAIWrapper:
 
     @classmethod
     def instantiate(
-        cls,
-        template: str | Callable | None,
-        context: Optional[Dict] = None,
-        allow_format_str_template: Optional[bool] = False,
+            cls,
+            template: str | Callable | None,
+            context: Optional[Dict] = None,
+            allow_format_str_template: Optional[bool] = False,
     ):
         if not context or template is None:
             return template
@@ -182,7 +200,7 @@ class OpenAIWrapper:
             ]
         return params
 
-    def create(self, **config):
+    def create(self, extra_config=None, **config):
         """Make a completion for a given config using openai's clients.
         Besides the kwargs allowed in openai's client, we allow the following additional kwargs.
         The config in each client will be overriden by the config.
@@ -241,7 +259,7 @@ class OpenAIWrapper:
                             # TODO: add response.cost
                             return response
                 try:
-                    response = self._completions_create(client, params)
+                    response = self._completions_create(client, params, **extra_config)
                 except APIError:
                     logger.debug(f"config {i} failed", exc_info=1)
                     if i == last:
@@ -252,7 +270,7 @@ class OpenAIWrapper:
                         cache.set(key, response)
                     return response
 
-    def _completions_create(self, client, params):
+    def _completions_create(self, client, params, **extra_config):
         completions = client.chat.completions if "messages" in params else client.completions
         # If streaming is enabled, has messages, and does not have functions, then
         # iterate over the chunks of the response
@@ -262,24 +280,40 @@ class OpenAIWrapper:
             completion_tokens = 0
 
             # Set the terminal text color to green
-            print("\033[32m", end="")
+            params.pop("retry_wait_time")
+            params.pop("api_type")
+            params.pop("request_timeout")
 
+            if extra_config is not None:
+                send_to_socket = extra_config.get("chunk_callback")
+                message_uuid = str(uuid4())
             # Send the chat completion request to OpenAI's API and process the response in chunks
-            for chunk in completions.create(**params):
+            first = True
+            for chunk_index, chunk in enumerate(completions.create(**params)):
+                if chunk_index % NTH_CHUNK_CHECK == 0 and self.redis_client:
+                    delete_return_value = self.redis_client.delete(f"{self.sid}_stop")
+                    if delete_return_value == 1:  # 1 indicates that it was deleted, so must have been set
+                        raise StopGeneratingException(f"stop key was set, stopping generating")
                 if chunk.choices:
                     for choice in chunk.choices:
                         content = choice.delta.content
                         finish_reasons[choice.index] = choice.finish_reason
                         # If content is present, print it to the terminal and update response variables
                         if content is not None:
-                            print(content, end="", flush=True)
+                            if extra_config.get("stream") is True:
+                                message = {
+                                    "chunkId": message_uuid,
+                                    "text": content,
+                                    "first": first,
+                                    "tokens": 1,
+                                    "timestamp": datetime.now().timestamp() * 1000
+                                }
+                                send_to_socket("message", message)
                             response_contents[choice.index] += content
                             completion_tokens += 1
+                            first = False
                         else:
                             print()
-
-            # Reset the terminal text color
-            print("\033[0m\n")
 
             # Prepare the final ChatCompletion object based on the accumulated data
             model = chunk.model.replace("gpt-35", "gpt-3.5")  # hack for Azure API
@@ -330,6 +364,5 @@ class OpenAIWrapper:
         return [
             choice.message if choice.message.function_call is not None else choice.message.content for choice in choices
         ]
-
 
 # TODO: logging

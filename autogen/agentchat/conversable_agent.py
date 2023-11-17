@@ -651,7 +651,8 @@ class ConversableAgent(Agent):
         # response = oai.ChatCompletion.create(
         #     context=messages[-1].pop("context", None), messages=self._oai_system_message + messages, **llm_config
         response = client.create(
-            context=messages[-1].pop("context", None), messages=self._oai_system_message + messages
+            self.llm_config,
+            context=messages[-1].pop("context", None), messages=self._oai_system_message + messages,
         )
         return True, client.extract_text_or_function_call(response)[0]
 
