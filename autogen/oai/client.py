@@ -287,11 +287,12 @@ class OpenAIWrapper:
             if extra_config is not None:
                 send_to_socket = extra_config.get("chunk_callback")
                 message_uuid = str(uuid4())
+                sid = extra_config.get("sid")
             # Send the chat completion request to OpenAI's API and process the response in chunks
             first = True
             for chunk_index, chunk in enumerate(completions.create(**params)):
                 if chunk_index % NTH_CHUNK_CHECK == 0 and self.redis_client:
-                    delete_return_value = self.redis_client.delete(f"{self.sid}_stop")
+                    delete_return_value = self.redis_client.delete(f"{sid}_stop")
                     if delete_return_value == 1:  # 1 indicates that it was deleted, so must have been set
                         raise StopGeneratingException(f"stop key was set, stopping generating")
                 if chunk.choices:
