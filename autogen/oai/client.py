@@ -10,7 +10,7 @@ from datetime import datetime
 from autogen.oai.openai_utils import get_key
 from autogen.token_count_utils import count_token
 from uuid import uuid4
-from autogen.code_utils import extract_code
+import redis
 
 try:
     from openai import OpenAI, APIError
