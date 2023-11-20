@@ -331,6 +331,12 @@ class OpenAIWrapper:
                     total_tokens=prompt_tokens + completion_tokens,
                 ),
             )
+            send_to_socket(
+                "message_complete",
+                {"text": response_contents,
+                 "deltaTokens": prompt_tokens,
+                 "chunkId": message_uuid,
+                 "codeBlocks": []})
             for i in range(len(response_contents)):
                 response.choices.append(
                     Choice(
