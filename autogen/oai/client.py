@@ -333,7 +333,7 @@ class OpenAIWrapper:
             )
             send_to_socket(
                 "message_complete",
-                {"text": response_contents,
+                {"text": response_contents[0] if len(response_contents) > 0 else "",
                  "deltaTokens": prompt_tokens,
                  "chunkId": message_uuid,
                  "codeBlocks": []})
