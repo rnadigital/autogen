@@ -274,15 +274,17 @@ class OpenAIWrapper:
         completions = client.chat.completions if "messages" in params else client.completions
         # If streaming is enabled, has messages, and does not have functions, then
         # iterate over the chunks of the response
+        params.pop("retry_wait_time")
+        params.pop("api_type")
+        params.pop("request_timeout")
+        params.pop("use_cache")
+
         if params.get("stream", False) and "messages" in params and "functions" not in params:
             response_contents = [""] * params.get("n", 1)
             finish_reasons = [""] * params.get("n", 1)
             completion_tokens = 0
 
             # Set the terminal text color to green
-            params.pop("retry_wait_time")
-            params.pop("api_type")
-            params.pop("request_timeout")
 
             if extra_config is not None:
                 send_to_socket = extra_config.get("chunk_callback")
