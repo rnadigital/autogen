@@ -274,11 +274,7 @@ class OpenAIWrapper:
         completions = client.chat.completions if "messages" in params else client.completions
         # If streaming is enabled, has messages, and does not have functions, then
         # iterate over the chunks of the response
-        if params.get("retry_wait_time"):
-            params.pop("retry_wait_time")
         params.pop("api_type")
-        params.pop("request_timeout")
-        params.pop("use_cache")
 
         if params.get("stream", False) and "messages" in params and "functions" not in params:
             response_contents = [""] * params.get("n", 1)
