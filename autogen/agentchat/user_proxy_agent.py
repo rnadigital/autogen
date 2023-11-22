@@ -1,6 +1,6 @@
 from .conversable_agent import ConversableAgent
-from typing import Callable, Dict, Optional, Union
 from socketio.simple_client import SimpleClient
+from typing import Callable, Dict, Literal, Optional, Union
 
 
 class UserProxyAgent(ConversableAgent):
@@ -23,9 +23,9 @@ class UserProxyAgent(ConversableAgent):
             max_consecutive_auto_reply: Optional[int] = None,
             human_input_mode: Optional[str] = "ALWAYS",
             function_map: Optional[Dict[str, Callable]] = None,
-            code_execution_config: Optional[Union[Dict, bool]] = None,
+            code_execution_config: Optional[Union[Dict, Literal[False]]] = None,
             default_auto_reply: Optional[Union[str, Dict, None]] = "",
-            llm_config: Optional[Union[Dict, bool]] = False,
+            llm_config: Optional[Union[Dict, Literal[False]]] = False,
             system_message: Optional[str] = "",
             use_sockets: Optional[bool] = False,
             socket_client: Optional[Union[SimpleClient, bool]] = None,

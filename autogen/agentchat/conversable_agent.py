@@ -4,9 +4,9 @@ from collections import defaultdict
 import copy
 import json
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 from uuid import uuid4
 from datetime import datetime
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Type, Union
 from autogen import OpenAIWrapper
 from .agent import Agent
 from socketio.simple_client import SimpleClient
@@ -48,6 +48,8 @@ class ConversableAgent(Agent):
     }
     MAX_CONSECUTIVE_AUTO_REPLY = 100  # maximum number of consecutive auto replies (subject to future change)
 
+    llm_config: Union[Dict, Literal[False]]
+
     def __init__(
             self,
             name: str,
@@ -56,8 +58,8 @@ class ConversableAgent(Agent):
             max_consecutive_auto_reply: Optional[int] = None,
             human_input_mode: Optional[str] = "TERMINATE",
             function_map: Optional[Dict[str, Callable]] = None,
-            code_execution_config: Optional[Union[Dict, bool]] = None,
-            llm_config: Optional[Union[Dict, bool]] = None,
+            code_execution_config: Optional[Union[Dict, Literal[False]]] = None,
+            llm_config: Optional[Union[Dict, Literal[False]]] = None,
             default_auto_reply: Optional[Union[str, Dict, None]] = "",
             use_sockets: Optional[Union[bool, None]] = False,
             socket_client: Optional[Union[SimpleClient, bool]] = None,
@@ -97,7 +99,7 @@ class ConversableAgent(Agent):
                     When set to True, a default list will be used.
                     We strongly recommend using docker for code execution.
                 - timeout (Optional, int): The maximum execution time in seconds.
-                - last_n_messages (Experimental, Optional, int): The number of messages to look back for code execution. Default to 1.
+                - last_n_messages (Experimental, Optional, int or str): The number of messages to look back for code execution. Default to 1. If set to 'auto', it will scan backwards through all messages arriving since the agent last spoke (typically this is the last time execution was attempted).
             llm_config (dict or False): llm inference configuration.
                 Please refer to [OpenAIWrapper.create](/docs/reference/oai/client#create)
                 for available options.
@@ -120,7 +122,9 @@ class ConversableAgent(Agent):
                 self.llm_config.update(llm_config)
             self.client = OpenAIWrapper(**self.llm_config)
 
-        self._code_execution_config = {} if code_execution_config is None else code_execution_config
+        self._code_execution_config: Union[Dict, Literal[False]] = (
+            {} if code_execution_config is None else code_execution_config
+        )
         self.human_input_mode = human_input_mode
         self._max_consecutive_auto_reply = (
             max_consecutive_auto_reply if max_consecutive_auto_reply is not None else self.MAX_CONSECUTIVE_AUTO_REPLY
@@ -146,12 +150,12 @@ class ConversableAgent(Agent):
         self.register_reply([Agent, None], ConversableAgent.check_termination_and_human_reply)
 
     def register_reply(
-            self,
-            trigger: Union[Type[Agent], str, Agent, Callable[[Agent], bool], List],
-            reply_func: Callable,
-            position: Optional[int] = 0,
-            config: Optional[Any] = None,
-            reset_config: Optional[Callable] = None,
+        self,
+        trigger: Union[Type[Agent], str, Agent, Callable[[Agent], bool], List],
+        reply_func: Callable,
+        position: int = 0,
+        config: Optional[Any] = None,
+        reset_config: Optional[Callable] = None,
     ):
         """Register a reply function.
 
@@ -176,7 +180,7 @@ class ConversableAgent(Agent):
             messages: Optional[List[Dict]] = None,
             sender: Optional[Agent] = None,
             config: Optional[Any] = None,
-        ) -> Union[str, Dict, None]:
+        ) -> Tuple[bool, Union[str, Dict, None]]:
         ```
             position (int): the position of the reply function in the reply function list.
                 The function registered later will be checked earlier by default.
@@ -235,7 +239,7 @@ class ConversableAgent(Agent):
         """A dictionary of conversations from agent to list of messages."""
         return self._oai_messages
 
-    def last_message(self, agent: Optional[Agent] = None) -> Dict:
+    def last_message(self, agent: Optional[Agent] = None) -> Optional[Dict]:
         """The last message exchanged with the agent.
 
         Args:
@@ -315,12 +319,12 @@ class ConversableAgent(Agent):
         return True
 
     def send(
-            self,
-            message: Union[Dict, str, list],
-            recipient: Agent,
-            request_reply: Optional[bool] = None,
-            silent: Optional[bool] = False,
-    ) -> bool:
+        self,
+        message: Union[Dict, str],
+        recipient: Agent,
+        request_reply: Optional[bool] = None,
+        silent: Optional[bool] = False,
+    ):
         """Send a message to another agent.
 
         Args:
@@ -364,12 +368,12 @@ class ConversableAgent(Agent):
             )
 
     async def a_send(
-            self,
-            message: Union[Dict, str],
-            recipient: Agent,
-            request_reply: Optional[bool] = None,
-            silent: Optional[bool] = False,
-    ) -> bool:
+        self,
+        message: Union[Dict, str],
+        recipient: Agent,
+        request_reply: Optional[bool] = None,
+        silent: Optional[bool] = False,
+    ):
         """(async) Send a message to another agent.
 
         Args:
@@ -415,6 +419,8 @@ class ConversableAgent(Agent):
     def _print_received_message(self, message: Union[Dict, str], sender: Agent):
         # print the message received
         print(colored(sender.name, "yellow"), "(to", f"{self.name}):\n", flush=True)
+        message = self._message_to_dict(message)
+
         if message.get("role") == "function":
             func_print = f"***** Response from calling function \"{message['name']}\" *****"
             print(colored(func_print, "green"), flush=True)
@@ -631,10 +637,10 @@ class ConversableAgent(Agent):
         })
 
     def generate_oai_reply(
-            self,
-            messages: Optional[List[Dict]] = None,
-            sender: Optional[Agent] = None,
-            config: Optional[Any] = None,
+        self,
+        messages: Optional[List[Dict]] = None,
+        sender: Optional[Agent] = None,
+        config: Optional[OpenAIWrapper] = None,
     ) -> Tuple[bool, Union[str, Dict, None]]:
         """Generate a reply using autogen.oai."""
         client = self.client if config is None else config
@@ -654,10 +660,10 @@ class ConversableAgent(Agent):
         return True, client.extract_text_or_function_call(response)[0]
 
     def generate_code_execution_reply(
-            self,
-            messages: Optional[List[Dict]] = None,
-            sender: Optional[Agent] = None,
-            config: Optional[Any] = None,
+        self,
+        messages: Optional[List[Dict]] = None,
+        sender: Optional[Agent] = None,
+        config: Optional[Union[Dict, Literal[False]]] = None,
     ):
         """Generate a reply using code execution."""
         code_execution_config = config if config is not None else self._code_execution_config
@@ -667,10 +673,23 @@ class ConversableAgent(Agent):
             messages = self._oai_messages[sender]
         last_n_messages = code_execution_config.pop("last_n_messages", 1)
 
+        messages_to_scan = last_n_messages
+        if last_n_messages == "auto":
+            # Find when the agent last spoke
+            messages_to_scan = 0
+            for i in range(len(messages)):
+                message = messages[-(i + 1)]
+                if "role" not in message:
+                    break
+                elif message["role"] != "user":
+                    break
+                else:
+                    messages_to_scan += 1
+
         # iterate through the last n messages reversly
         # if code blocks are found, execute the code blocks and return the output
         # if no code blocks are found, continue
-        for i in range(min(len(messages), last_n_messages)):
+        for i in range(min(len(messages), messages_to_scan)):
             message = messages[-(i + 1)]
             if not message["content"]:
                 continue
@@ -1256,7 +1275,7 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
         """Generate the initial message for the agent.
 
         Override this function to customize the initial message based on user's request.
-        If not overriden, "message" needs to be provided in the context.
+        If not overridden, "message" needs to be provided in the context.
         """
         return context["message"]
 
