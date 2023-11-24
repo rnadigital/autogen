@@ -150,12 +150,12 @@ class ConversableAgent(Agent):
         self.register_reply([Agent, None], ConversableAgent.check_termination_and_human_reply)
 
     def register_reply(
-        self,
-        trigger: Union[Type[Agent], str, Agent, Callable[[Agent], bool], List],
-        reply_func: Callable,
-        position: int = 0,
-        config: Optional[Any] = None,
-        reset_config: Optional[Callable] = None,
+            self,
+            trigger: Union[Type[Agent], str, Agent, Callable[[Agent], bool], List],
+            reply_func: Callable,
+            position: int = 0,
+            config: Optional[Any] = None,
+            reset_config: Optional[Callable] = None,
     ):
         """Register a reply function.
 
@@ -319,11 +319,11 @@ class ConversableAgent(Agent):
         return True
 
     def send(
-        self,
-        message: Union[Dict, str],
-        recipient: Agent,
-        request_reply: Optional[bool] = None,
-        silent: Optional[bool] = False,
+            self,
+            message: Union[Dict, str],
+            recipient: Agent,
+            request_reply: Optional[bool] = None,
+            silent: Optional[bool] = False,
     ):
         """Send a message to another agent.
 
@@ -368,11 +368,11 @@ class ConversableAgent(Agent):
             )
 
     async def a_send(
-        self,
-        message: Union[Dict, str],
-        recipient: Agent,
-        request_reply: Optional[bool] = None,
-        silent: Optional[bool] = False,
+            self,
+            message: Union[Dict, str],
+            recipient: Agent,
+            request_reply: Optional[bool] = None,
+            silent: Optional[bool] = False,
     ):
         """(async) Send a message to another agent.
 
@@ -637,10 +637,10 @@ class ConversableAgent(Agent):
         })
 
     def generate_oai_reply(
-        self,
-        messages: Optional[List[Dict]] = None,
-        sender: Optional[Agent] = None,
-        config: Optional[OpenAIWrapper] = None,
+            self,
+            messages: Optional[List[Dict]] = None,
+            sender: Optional[Agent] = None,
+            config: Optional[OpenAIWrapper] = None,
     ) -> Tuple[bool, Union[str, Dict, None]]:
         """Generate a reply using autogen.oai."""
         client = self.client if config is None else config
@@ -649,9 +649,11 @@ class ConversableAgent(Agent):
         if messages is None:
             messages = self._oai_messages[sender]
         # TODO: #1143 handle token limit exceeded error
-        self.llm_config["stream"] = self.use_sockets if sender else False  # do not send message if the sender is None, that is it's an internal system message
+        self.llm_config[
+            "stream"] = self.use_sockets if sender else False  # do not send message if the sender is None, that is it's an internal system message
         sender_name = self.speaker
-        self.llm_config["chunk_callback"] = lambda event, message: self.send_message_to_socket(event, sender_name, message)
+        self.llm_config["chunk_callback"] = lambda event, message: self.send_message_to_socket(event, sender_name,
+                                                                                               message)
         self.llm_config["sid"] = self.sid
         response = client.create(
             self.llm_config,
@@ -660,10 +662,10 @@ class ConversableAgent(Agent):
         return True, client.extract_text_or_function_call(response)[0]
 
     def generate_code_execution_reply(
-        self,
-        messages: Optional[List[Dict]] = None,
-        sender: Optional[Agent] = None,
-        config: Optional[Union[Dict, Literal[False]]] = None,
+            self,
+            messages: Optional[List[Dict]] = None,
+            sender: Optional[Agent] = None,
+            config: Optional[Union[Dict, Literal[False]]] = None,
     ):
         """Generate a reply using code execution."""
         code_execution_config = config if config is not None else self._code_execution_config
@@ -735,10 +737,10 @@ class ConversableAgent(Agent):
         return False, None
 
     async def generate_async_function_call_reply(
-        self,
-        messages: Optional[List[Dict]] = None,
-        sender: Optional[Agent] = None,
-        config: Optional[Any] = None,
+            self,
+            messages: Optional[List[Dict]] = None,
+            sender: Optional[Agent] = None,
+            config: Optional[Any] = None,
     ):
         """Generate a reply using async function call."""
         if config is None:
@@ -840,10 +842,10 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
         return False, None
 
     async def a_check_termination_and_human_reply(
-        self,
-        messages: Optional[List[Dict]] = None,
-        sender: Optional[Agent] = None,
-        config: Optional[Any] = None,
+            self,
+            messages: Optional[List[Dict]] = None,
+            sender: Optional[Agent] = None,
+            config: Optional[Any] = None,
     ) -> Tuple[bool, Union[str, Dict, None]]:
         """(async) Check if the conversation should be terminated, and if human reply is provided."""
         if config is None:
@@ -1190,7 +1192,7 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
         """
         func_name = func_call.get("name", "")
         func = self._function_map.get(func_name, None)
-
+        content = ""
         is_exec_success = False
         if func is not None:
             # Extract arguments from a json-like string and put it into a dict.
@@ -1214,6 +1216,17 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
                     content = f"Error: {e}"
         else:
             content = f"Error: Function {func_name} not found."
+
+        if self.use_sockets:
+            message_uuid = str(uuid4())
+            self.send_message_to_socket("message", self.speaker, {
+                "chunkId": message_uuid,
+                "text": f"```bash{content}```",
+                "type": "logs",
+                "first": True,
+                "tokens": 0,
+                "timestamp": datetime.now().timestamp() * 1000
+            })
 
         return is_exec_success, {
             "name": func_name,
