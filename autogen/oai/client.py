@@ -313,7 +313,7 @@ class OpenAIWrapper:
                             params["stream"] = False
                             response = completions.create(**params)
                             if response.choices[0].message.function_call:
-                                msg = f"Executing function `{response.choices[0].message.function_call.name}` using the following parameter: '{response.choices[0].message.function_call.arguments}'"
+                                msg = f"Executing function `{response.choices[0].message.function_call.name}` using the following parameter: `{response.choices[0].message.function_call.arguments}`"
                             elif response.choices[0].message.content:
                                 msg = response.choices[0].message.content
                             else:
