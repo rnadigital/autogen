@@ -262,7 +262,7 @@ class OpenAIWrapper:
                             return response
                         continue  # filter is not passed; try the next config
             try:
-                response = self._completions_create(client, params)
+                response = self._completions_create(client, params, **extra_config)
             except APIError:
                 logger.debug(f"config {i} failed", exc_info=1)
                 if i == last:
@@ -287,9 +287,11 @@ class OpenAIWrapper:
         completions = client.chat.completions if "messages" in params else client.completions
         # If streaming is enabled, has messages, and does not have functions, then
         # iterate over the chunks of the response
-        params.pop("api_type")
-
-        if params.get("stream", False) and "messages" in params and "functions" not in params:
+        if "api_type" in params:
+            params.pop("api_type")
+        send_to_socket = extra_config.get("chunk_callback")
+        message_uuid = str(uuid4())
+        if params.get("stream", False) and "messages" in params:
             response_contents = [""] * params.get("n", 1)
             finish_reasons = [""] * params.get("n", 1)
             completion_tokens = 0
@@ -297,8 +299,6 @@ class OpenAIWrapper:
             # Set the terminal text color to green
 
             if extra_config is not None:
-                send_to_socket = extra_config.get("chunk_callback")
-                message_uuid = str(uuid4())
                 sid = extra_config.get("sid")
             # Send the chat completion request to OpenAI's API and process the response in chunks
             first = True
@@ -309,6 +309,23 @@ class OpenAIWrapper:
                         raise StopGeneratingException(f"stop key was set, stopping generating")
                 if chunk.choices:
                     for choice in chunk.choices:
+                        if choice.delta.function_call and not choice.delta.content:
+                            params["stream"] = False
+                            response = completions.create(**params)
+                            if response.choices[0].message.function_call:
+                                msg = f"Executing function `{response.choices[0].message.function_call.name}` using the following parameter: '{response.choices[0].message.function_call.arguments}'"
+                            elif response.choices[0].message.content:
+                                msg = response.choices[0].message.content
+                            else:
+                                msg = ""
+                            prompt_tokens = count_token(msg)
+                            send_to_socket(
+                                "message",
+                                {"text": msg,
+                                 "deltaTokens": prompt_tokens,
+                                 "chunkId": message_uuid,
+                                 "codeBlocks": []})
+                            return response
                         content = choice.delta.content
                         finish_reasons[choice.index] = choice.finish_reason
                         # If content is present, print it to the terminal and update response variables
@@ -325,8 +342,6 @@ class OpenAIWrapper:
                             response_contents[choice.index] += content
                             completion_tokens += 1
                             first = False
-                        else:
-                            print()
 
             # Prepare the final ChatCompletion object based on the accumulated data
             model = chunk.model.replace("gpt-35", "gpt-3.5")  # hack for Azure API
@@ -359,13 +374,6 @@ class OpenAIWrapper:
                         ),
                     )
                 )
-        else:
-            # If streaming is not enabled or using functions, send a regular chat completion request
-            # Functions are not supported, so ensure streaming is disabled
-            params = params.copy()
-            params["stream"] = False
-            response = completions.create(**params)
-        return response
 
     @classmethod
     def extract_text_or_function_call(cls, response: ChatCompletion | Completion) -> List[str]:
