@@ -706,7 +706,10 @@ class ConversableAgent(Agent):
                 message_uuid = str(uuid4())
                 self.send_message_to_socket("message", self.speaker, {
                     "chunkId": message_uuid,
-                    "text": f"```bash{logs}```",
+                    #NOTE: may need language detection, rn letting markdown on frontend do it automatically              
+                    "text": f"""```
+{logs}
+```""",
                     "type": "logs",
                     "first": True,
                     "tokens": 0,
@@ -1134,7 +1137,10 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
                 message_uuid = str(uuid4())
                 self.send_message_to_socket("message", self.speaker, {
                     "chunkId": message_uuid,
-                    "text": f"```bash{logs}```",
+                    #NOTE: may need language detection, rn letting markdown on frontend do it automatically
+                    "text": f"""```
+{logs}
+```""",
                     "type": "logs",
                     "first": True,
                     "tokens": 0,
@@ -1221,7 +1227,10 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
             message_uuid = str(uuid4())
             self.send_message_to_socket("message", self.speaker, {
                 "chunkId": message_uuid,
-                "text": f"```bash{content}```",
+                #NOTE: may need language detection, rn letting markdown on frontend do it automatically
+                "text": f"""```
+{content}
+```""",
                 "type": "logs",
                 "first": True,
                 "tokens": 0,
