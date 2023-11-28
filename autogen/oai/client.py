@@ -374,6 +374,7 @@ class OpenAIWrapper:
                         ),
                     )
                 )
+            return response
 
     @classmethod
     def extract_text_or_function_call(cls, response: ChatCompletion | Completion) -> List[str]:
