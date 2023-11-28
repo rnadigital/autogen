@@ -295,8 +295,10 @@ class OpenAIWrapper:
             response_contents = [""] * params.get("n", 1)
             finish_reasons = [""] * params.get("n", 1)
             completion_tokens = 0
-
-            # Set the terminal text color to green
+            # Sending an empty functions list in the params to OAI seems to be a problem
+            # So this is our workaround right now. We check if an agent has an empty functions list, if so pop it!
+            if "functions" in params and len(params.get("functions")) == 0:
+                params.pop("functions")
 
             if extra_config is not None:
                 sid = extra_config.get("sid")
