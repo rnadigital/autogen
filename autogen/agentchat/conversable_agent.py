@@ -16,6 +16,8 @@ from autogen.code_utils import (
     execute_code,
     extract_code,
     infer_lang,
+    execute_function_in_docker,
+    serialize_function
 )
 
 try:
@@ -706,7 +708,7 @@ class ConversableAgent(Agent):
                 message_uuid = str(uuid4())
                 self.send_message_to_socket("message", self.speaker, {
                     "chunkId": message_uuid,
-                    #NOTE: may need language detection, rn letting markdown on frontend do it automatically              
+                    # NOTE: may need language detection, rn letting markdown on frontend do it automatically
                     "text": f"""```
 {logs}
 ```""",
@@ -1137,7 +1139,7 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
                 message_uuid = str(uuid4())
                 self.send_message_to_socket("message", self.speaker, {
                     "chunkId": message_uuid,
-                    #NOTE: may need language detection, rn letting markdown on frontend do it automatically
+                    # NOTE: may need language detection, rn letting markdown on frontend do it automatically
                     "text": f"""```
 {logs}
 ```""",
@@ -1216,7 +1218,9 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
                     flush=True,
                 )
                 try:
-                    content = func(**arguments)
+                    serialized_func = serialize_function(func(**arguments), 5, 3)
+                    content = execute_function_in_docker(serialized_func)
+                    # content = func(**arguments)
                     is_exec_success = True
                 except Exception as e:
                     content = f"Error: {e}"
@@ -1227,8 +1231,8 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
             message_uuid = str(uuid4())
             self.send_message_to_socket("message", self.speaker, {
                 "chunkId": message_uuid,
-                #NOTE: may need language detection, rn letting markdown on frontend do it automatically
-                "text": f"""```
+                # NOTE: may need language detection, rn letting markdown on frontend do it automatically
+                "text": f"""```bash
 {content}
 ```""",
                 "type": "logs",

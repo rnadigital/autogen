@@ -1,24 +1,17 @@
-import subprocess
 import sys
 import logging
 import os
 import pathlib
 import re
 import subprocess
-import sys
-import time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from hashlib import md5
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from autogen import oai
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
-from docker.errors import ImageNotFound
-
-try:
-    import docker
-except ImportError:
-    docker = None
+import dill
+import time
+import docker
 
 DEFAULT_MODEL = "gpt-4"
 FAST_MODEL = "gpt-3.5-turbo"
@@ -74,7 +67,7 @@ def infer_lang(code):
 # TODO: In the future move, to better support https://spec.commonmark.org/0.30/#fenced-code-blocks
 #       perhaps by using a full Markdown parser.
 def extract_code(
-    text: Union[str, List], pattern: str = CODE_BLOCK_PATTERN, detect_single_line_code: bool = False
+        text: Union[str, List], pattern: str = CODE_BLOCK_PATTERN, detect_single_line_code: bool = False
 ) -> List[Tuple[str, str]]:
     """Extract code from a text.
 
@@ -201,12 +194,12 @@ def _cmd(lang):
 
 
 def execute_code(
-    code: Optional[str] = None,
-    timeout: Optional[int] = None,
-    filename: Optional[str] = None,
-    work_dir: Optional[str] = None,
-    use_docker: Optional[Union[List[str], str, bool]] = None,
-    lang: Optional[str] = "python",
+        code: Optional[str] = None,
+        timeout: Optional[int] = None,
+        filename: Optional[str] = None,
+        work_dir: Optional[str] = None,
+        use_docker: Optional[Union[List[str], str, bool]] = None,
+        lang: Optional[str] = "python",
 ) -> Tuple[int, str, str]:
     """Execute code in a docker container.
     This function is not tested on MacOS.
@@ -310,7 +303,7 @@ def execute_code(
                     return 1, TIMEOUT_MSG, None
         if original_filename is None:
             os.remove(filepath)
-        
+
         if result.returncode:
             logs = result.stderr
             if original_filename is None:
@@ -584,3 +577,69 @@ def implement(
     #     cost += metrics["gen_cost"]
     #     if metrics["succeed_assertions"] or i == len(configs) - 1:
     #         return responses[metrics["index_selected"]], cost, i
+
+
+def serialize_function(func, *args, **kwargs):
+    """ Serialize function and its arguments. """
+    return dill.dumps((func, args, kwargs))
+
+
+def execute_function_in_docker(serialized_func, use_docker=True, work_dir='.', timeout=300):
+    # Create a docker client
+    client = docker.from_env()
+
+    # Define the image list
+    image_list = (
+        ["python:3-alpine", "python:3", "python:3-windowsservercore"]
+        if use_docker is True
+        else [use_docker]
+        if isinstance(use_docker, str)
+        else use_docker
+    )
+
+    # Setup Docker image
+    for image in image_list:
+        try:
+            client.images.get(image)
+            break
+        except docker.errors.ImageNotFound:
+            print("Pulling image", image)
+            try:
+                client.images.pull(image)
+                break
+            except docker.errors.DockerException:
+                print("Failed to pull image", image)
+
+    # Write the serialized function to a file
+    func_filename = "function.pkl"
+    with open(func_filename, "wb") as file:
+        file.write(serialized_func)
+
+    # Prepare Docker command
+    cmd = [
+        "python", "-c",
+        "import dill; with open('/workspace/function.pkl', 'rb') as f: func, args, kwargs = dill.load(f); print(func(*args, **kwargs))"
+    ]
+
+    # Create and run the Docker container
+    abs_path = str(pathlib.Path(work_dir).absolute())
+    container = client.containers.run(
+        image,
+        command=cmd,
+        working_dir="/workspace",
+        detach=True,
+        volumes={abs_path: {"bind": "/workspace", "mode": "rw"}},
+    )
+
+    # Wait for the container to finish execution
+    container.wait(timeout=timeout)
+
+    # Retrieve the logs (output)
+    logs = container.logs().decode("utf-8").rstrip()
+
+    # Cleanup
+    container.remove()
+    os.remove(func_filename)
+
+    # Return the logs
+    return logs
