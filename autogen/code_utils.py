@@ -605,9 +605,9 @@ def execute_function_in_docker(function_code, function_name, function_arguments,
     container = client.containers.run(
         image="python:3",
         command=["python", "-c", function_to_run],
-        working_dir="/workspace",
+        # working_dir="/workspace",
         detach=True,
-        volumes={abs_path: {"bind": "/workspace", "mode": "rw"}},
+        # volumes={abs_path: {"bind": "/workspace", "mode": "rw"}},
     )
 
     # Wait for the container to finish execution
