@@ -586,7 +586,7 @@ def serialize_function(func, *args, **kwargs):
 
 def execute_function_in_docker(function_code, function_name, function_arguments, use_docker=True, work_dir='.', timeout=300):
 
-    function_to_run = """
+    function_to_run = f"""
 {function_code}
 
 {function_name}(**{function_arguments})
