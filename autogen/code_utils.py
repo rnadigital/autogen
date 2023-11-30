@@ -586,28 +586,24 @@ def serialize_function(func, *args, **kwargs):
 
 def execute_function_in_docker(function_code, function_name, function_arguments, use_docker=True, work_dir='.', timeout=300):
 
-    print(function_code)
-    print('\n--\n')
-    print(function_name)
-    print('\n--\n')
-    print(function_arguments)
+    function_to_run = """
+{function_code}
+
+{function_name}(**{function_arguments})
+"""
+
+    # print(function_code)
+    # print(function_name)
+    # print(function_arguments)
+    print(function_to_run)
 
     # Create a docker client
     client = docker.from_env()
 
-    # Define the image list
-    image_list = (
-        ["python:3-alpine", "python:3", "python:3-windowsservercore"]
-        if use_docker is True
-        else [use_docker]
-        if isinstance(use_docker, str)
-        else use_docker
-    )
-
     # Create and run the Docker container
     abs_path = str(pathlib.Path(work_dir).absolute())
     container = client.containers.run(
-        image,
+        image="python:3",
         command=["python", "-c", function_to_run],
         working_dir="/workspace",
         detach=True,
