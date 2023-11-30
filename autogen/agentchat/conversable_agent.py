@@ -1228,20 +1228,6 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
         else:
             content = f"Error: Function {func_name} not found."
 
-        if self.use_sockets:
-            message_uuid = str(uuid4())
-            self.send_message_to_socket("message", self.speaker, {
-                "chunkId": message_uuid,
-                # NOTE: may need language detection, rn letting markdown on frontend do it automatically
-                "text": f"""```bash
-{content}
-```""",
-                "type": "logs",
-                "first": True,
-                "tokens": 0,
-                "timestamp": datetime.now().timestamp() * 1000
-            })
-
         return is_exec_success, {
             "name": func_name,
             "role": "function",
