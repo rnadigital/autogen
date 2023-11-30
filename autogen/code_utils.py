@@ -584,7 +584,14 @@ def serialize_function(func, *args, **kwargs):
     return dill.dumps((func, args, kwargs))
 
 
-def execute_function_in_docker(serialized_func, use_docker=True, work_dir='.', timeout=300):
+def execute_function_in_docker(function_code, function_name, function_arguments, use_docker=True, work_dir='.', timeout=300):
+
+    print(function_code)
+    print('\n--\n')
+    print(function_name)
+    print('\n--\n')
+    print(function_arguments)
+
     # Create a docker client
     client = docker.from_env()
 
@@ -597,49 +604,27 @@ def execute_function_in_docker(serialized_func, use_docker=True, work_dir='.', t
         else use_docker
     )
 
-    # Setup Docker image
-    for image in image_list:
-        try:
-            client.images.get(image)
-            break
-        except docker.errors.ImageNotFound:
-            print("Pulling image", image)
-            try:
-                client.images.pull(image)
-                break
-            except docker.errors.DockerException:
-                print("Failed to pull image", image)
-
-    # Write the serialized function to a file
-    func_filename = "function.pkl"
-    with open(func_filename, "wb") as file:
-        file.write(serialized_func)
-
-    # Prepare Docker command
-    cmd = [
-        "python", "-c",
-        "import dill; with open('/workspace/function.pkl', 'rb') as f: func, args, kwargs = dill.load(f); print(func(*args, **kwargs))"
-    ]
-
     # Create and run the Docker container
     abs_path = str(pathlib.Path(work_dir).absolute())
     container = client.containers.run(
         image,
-        command=cmd,
+        command=["python", "-c", function_to_run],
         working_dir="/workspace",
         detach=True,
         volumes={abs_path: {"bind": "/workspace", "mode": "rw"}},
     )
 
     # Wait for the container to finish execution
-    container.wait(timeout=timeout)
+    exit_code = container.wait(timeout=timeout)['StatusCode']
 
     # Retrieve the logs (output)
     logs = container.logs().decode("utf-8").rstrip()
 
+    # Print the container logs (optional)
+    print(logs)
+
     # Cleanup
     container.remove()
-    os.remove(func_filename)
 
     # Return the logs
     return logs

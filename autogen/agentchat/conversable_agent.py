@@ -1218,8 +1218,9 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
                     flush=True,
                 )
                 try:
-                    serialized_func = serialize_function(func(**arguments), 5, 3)
-                    content = execute_function_in_docker(serialized_func)
+                    import inspect
+                    function_code = inspect.getsource(func)
+                    content = execute_function_in_docker(function_code, func_name, arguments)
                     # content = func(**arguments)
                     is_exec_success = True
                 except Exception as e:
