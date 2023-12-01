@@ -1133,19 +1133,6 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
                     None,
                 )
                 # raise NotImplementedError
-            if self.use_sockets:
-                message_uuid = str(uuid4())
-                self.send_message_to_socket("message", self.speaker, {
-                    "chunkId": message_uuid,
-                    #NOTE: may need language detection, rn letting markdown on frontend do it automatically
-                    "text": f"""```
-{logs}
-```""",
-                    "type": "logs",
-                    "first": True,
-                    "tokens": 0,
-                    "timestamp": datetime.now().timestamp() * 1000
-                })
             if image is not None:
                 self._code_execution_config["use_docker"] = image
             logs_all += "\n" + logs
@@ -1222,20 +1209,6 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
                     content = f"Error: {e}"
         else:
             content = f"Error: Function {func_name} not found."
-
-        if self.use_sockets:
-            message_uuid = str(uuid4())
-            self.send_message_to_socket("message", self.speaker, {
-                "chunkId": message_uuid,
-                #NOTE: may need language detection, rn letting markdown on frontend do it automatically
-                "text": f"""```
-{content}
-```""",
-                "type": "logs",
-                "first": True,
-                "tokens": 0,
-                "timestamp": datetime.now().timestamp() * 1000
-            })
 
         return is_exec_success, {
             "name": func_name,
