@@ -17,7 +17,6 @@ from autogen.code_utils import (
     extract_code,
     infer_lang,
     execute_function_in_docker,
-    serialize_function
 )
 
 try:
@@ -1218,9 +1217,7 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
                     flush=True,
                 )
                 try:
-                    serialized_func = serialize_function(func(**arguments), 5, 3)
-                    content = execute_function_in_docker(serialized_func)
-                    # content = func(**arguments)
+                    content = execute_function_in_docker(func_name, func, arguments)
                     is_exec_success = True
                 except Exception as e:
                     content = f"Error: {e}"
