@@ -1234,6 +1234,7 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
 ```""",
                 "type": "logs",
                 "first": True,
+                "single": True,
                 "tokens": 0,
                 "timestamp": datetime.now().timestamp() * 1000
             })
