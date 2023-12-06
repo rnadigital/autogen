@@ -314,19 +314,27 @@ class OpenAIWrapper:
                         if choice.delta.function_call and not choice.delta.content:
                             params["stream"] = False
                             response = completions.create(**params)
-                            if response.choices[0].message.function_call:
+                            is_function_call = response.choices[0].message.function_call
+                            if is_function_call:
                                 msg = f"Executing function `{response.choices[0].message.function_call.name}` using the following parameter: `{response.choices[0].message.function_call.arguments}`"
                             elif response.choices[0].message.content:
                                 msg = response.choices[0].message.content
                             else:
                                 msg = ""
                             prompt_tokens = count_token(msg)
+                            message_chunk = {
+                                "text": msg,
+                                "deltaTokens": prompt_tokens,
+                                "chunkId": message_uuid,
+                                "codeBlocks": []
+                            }
+                            if is_function_call:
+                                message_chunk["first"] = True
+                                message_chunk["single"] = True
                             send_to_socket(
                                 "message",
-                                {"text": msg,
-                                 "deltaTokens": prompt_tokens,
-                                 "chunkId": message_uuid,
-                                 "codeBlocks": []})
+                                message_chunk
+                            )
                             return response
                         content = choice.delta.content
                         finish_reasons[choice.index] = choice.finish_reason
