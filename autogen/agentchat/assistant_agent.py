@@ -2,6 +2,8 @@ from .conversable_agent import ConversableAgent
 from socketio.simple_client import SimpleClient
 from typing import Callable, Dict, Literal, Optional, Union
 
+from .conversable_agent import ConversableAgent
+
 
 class AssistantAgent(ConversableAgent):
     """(In preview) Assistant agent, designed to solve a task with LLM.
@@ -26,6 +28,8 @@ If the result indicates there is an error, fix the error and output the code aga
 When you find an answer, verify the answer carefully. Include verifiable evidence in your response if possible.
 Reply "TERMINATE" in the end when everything is done.
     """
+
+    DEFAULT_DESCRIPTION = "A helpful and general-purpose AI assistant that has strong language skills, Python skills, and Linux command line skills."
 
     def __init__(
             self,
@@ -71,3 +75,9 @@ Reply "TERMINATE" in the end when everything is done.
             sid=sid,
             **kwargs,
         )
+
+        # Update the provided description if None, and we are using the default system_message,
+        # then use the default description.
+        if description is None:
+            if system_message == self.DEFAULT_SYSTEM_MESSAGE:
+                self.description = self.DEFAULT_DESCRIPTION
