@@ -20,11 +20,13 @@ from typing import (
     Optional,
     Tuple,
     Type,
+    TypeVar,
     Union,
 )
 from autogen import OpenAIWrapper
 from .agent import Agent
 from socketio.simple_client import SimpleClient
+
 
 from autogen.code_utils import (
     UNKNOWN,
