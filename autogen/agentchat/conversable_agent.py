@@ -654,6 +654,12 @@ class ConversableAgent(Agent):
     def _process_received_message(
         self, message: Union[Dict, str], sender: Agent, silent: bool
     ):
+        
+        # Assert inputs
+        assert isinstance(message, (str, dict)), "message must be a string or a dict"
+        assert isinstance(sender, Agent), "sender must be an Agent instance"
+        assert isinstance(silent, bool), "silent must be a boolean"
+
         if isinstance(message, str):
             message = self._message_to_dict(message)
 

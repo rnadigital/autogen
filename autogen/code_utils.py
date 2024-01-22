@@ -1,20 +1,24 @@
-import sys
 import logging
 import os
 import pathlib
 import re
 import string
 import subprocess
+import sys
+import time
+import inspect
+
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from hashlib import md5
 from typing import Callable, Dict, List, Optional, Tuple, Union, Any
 
 from autogen import oai
-
-from concurrent.futures import ThreadPoolExecutor, TimeoutError
-import time
-import docker
-import inspect
 from io import BytesIO
+
+try:
+    import docker
+except ImportError:
+    docker = None
 
 SENTINEL = object()
 DEFAULT_MODEL = "gpt-4"
@@ -69,20 +73,14 @@ def content_str(content: Union[str, List, None]) -> str:
     rst = ""
     for item in content:
         if not isinstance(item, dict):
-            raise TypeError(
-                "Wrong content format: every element should be dict if the content is a list."
-            )
-        assert (
-            "type" in item
-        ), "Wrong content format. Missing 'type' key in content's dict."
+            raise TypeError("Wrong content format: every element should be dict if the content is a list.")
+        assert "type" in item, "Wrong content format. Missing 'type' key in content's dict."
         if item["type"] == "text":
             rst += item["text"]
         elif item["type"] == "image_url":
             rst += "<image>"
         else:
-            raise ValueError(
-                f"Wrong content format: unknown type {item['type']} within the content"
-            )
+            raise ValueError(f"Wrong content format: unknown type {item['type']} within the content")
     return rst
 
 
@@ -90,11 +88,7 @@ def infer_lang(code):
     """infer the language for the code.
     TODO: make it robust.
     """
-    if (
-        code.startswith("python ")
-        or code.startswith("pip")
-        or code.startswith("python3 ")
-    ):
+    if code.startswith("python ") or code.startswith("pip") or code.startswith("python3 "):
         return "sh"
 
     # check if code is a valid python code
@@ -109,9 +103,7 @@ def infer_lang(code):
 # TODO: In the future move, to better support https://spec.commonmark.org/0.30/#fenced-code-blocks
 #       perhaps by using a full Markdown parser.
 def extract_code(
-    text: Union[str, List],
-    pattern: str = CODE_BLOCK_PATTERN,
-    detect_single_line_code: bool = False,
+    text: Union[str, List], pattern: str = CODE_BLOCK_PATTERN, detect_single_line_code: bool = False
 ) -> List[Tuple[str, str]]:
     """Extract code from a text.
 
@@ -162,10 +154,7 @@ def generate_code(pattern: str = CODE_BLOCK_PATTERN, **config) -> Tuple[str, flo
         float: The cost of the generation.
     """
     response = oai.Completion.create(**config)
-    return (
-        extract_code(oai.Completion.extract_text(response)[0], pattern),
-        response["cost"],
-    )
+    return extract_code(oai.Completion.extract_text(response)[0], pattern), response["cost"]
 
 
 _IMPROVE_FUNCTION_CONFIG = {
@@ -184,8 +173,7 @@ def improve_function(file_name, func_name, objective, **config):
     with open(file_name, "r") as f:
         file_string = f.read()
     response = oai.Completion.create(
-        {"func_name": func_name, "objective": objective, "file_string": file_string},
-        **params,
+        {"func_name": func_name, "objective": objective, "file_string": file_string}, **params
     )
     return oai.Completion.extract_text(response)[0], response["cost"]
 
@@ -223,9 +211,7 @@ def improve_code(files, objective, suggest_only=True, **config):
 """
     params = {**_IMPROVE_CODE_CONFIG, **config}
     followup = "" if suggest_only else " followed by the improved code"
-    response = oai.Completion.create(
-        {"objective": objective, "code": code, "followup": followup}, **params
-    )
+    response = oai.Completion.create({"objective": objective, "code": code, "followup": followup}, **params)
     return oai.Completion.extract_text(response)[0], response["cost"]
 
 
@@ -412,9 +398,7 @@ def execute_code(
             f".\\{filename}" if WIN32 else filename,
         ]
         if WIN32:
-            logger.warning(
-                "SIGALRM is not supported on Windows. No timeout will be enforced."
-            )
+            logger.warning("SIGALRM is not supported on Windows. No timeout will be enforced.")
             result = subprocess.run(
                 cmd,
                 cwd=work_dir,
@@ -438,7 +422,6 @@ def execute_code(
                     return 1, TIMEOUT_MSG, None
         if original_filename is None:
             os.remove(filepath)
-
         if result.returncode:
             logs = result.stderr
             if original_filename is None:
@@ -526,9 +509,7 @@ def execute_code(
     if original_filename is None:
         os.remove(filepath)
     if exit_code:
-        logs = logs.replace(
-            f"/workspace/{filename if original_filename is None else ''}", ""
-        )
+        logs = logs.replace(f"/workspace/{filename if original_filename is None else ''}", "")
     # return the exit code, logs and image
     return exit_code, logs, f"python:{tag}"
 
@@ -623,13 +604,9 @@ def eval_function_completions(
         for i in range(n):
             response = responses[i] = _remove_check(responses[i])
             code = (
-                f"{response}\n{assertions}"
-                if response.startswith("def")
-                else f"{definition}{response}\n{assertions}"
+                f"{response}\n{assertions}" if response.startswith("def") else f"{definition}{response}\n{assertions}"
             )
-            succeed_assertions = (
-                execute_code(code, timeout=timeout, use_docker=use_docker)[0] == 0
-            )
+            succeed_assertions = execute_code(code, timeout=timeout, use_docker=use_docker)[0] == 0
             if succeed_assertions:
                 break
     else:
@@ -662,39 +639,11 @@ def eval_function_completions(
 _FUNC_COMPLETION_PROMPT = "# Python 3{definition}"
 _FUNC_COMPLETION_STOP = ["\nclass", "\ndef", "\nif", "\nprint"]
 _IMPLEMENT_CONFIGS = [
-    {
-        "model": FAST_MODEL,
-        "prompt": _FUNC_COMPLETION_PROMPT,
-        "temperature": 0,
-        "cache_seed": 0,
-    },
-    {
-        "model": FAST_MODEL,
-        "prompt": _FUNC_COMPLETION_PROMPT,
-        "stop": _FUNC_COMPLETION_STOP,
-        "n": 7,
-        "cache_seed": 0,
-    },
-    {
-        "model": DEFAULT_MODEL,
-        "prompt": _FUNC_COMPLETION_PROMPT,
-        "temperature": 0,
-        "cache_seed": 1,
-    },
-    {
-        "model": DEFAULT_MODEL,
-        "prompt": _FUNC_COMPLETION_PROMPT,
-        "stop": _FUNC_COMPLETION_STOP,
-        "n": 2,
-        "cache_seed": 2,
-    },
-    {
-        "model": DEFAULT_MODEL,
-        "prompt": _FUNC_COMPLETION_PROMPT,
-        "stop": _FUNC_COMPLETION_STOP,
-        "n": 1,
-        "cache_seed": 2,
-    },
+    {"model": FAST_MODEL, "prompt": _FUNC_COMPLETION_PROMPT, "temperature": 0, "cache_seed": 0},
+    {"model": FAST_MODEL, "prompt": _FUNC_COMPLETION_PROMPT, "stop": _FUNC_COMPLETION_STOP, "n": 7, "cache_seed": 0},
+    {"model": DEFAULT_MODEL, "prompt": _FUNC_COMPLETION_PROMPT, "temperature": 0, "cache_seed": 1},
+    {"model": DEFAULT_MODEL, "prompt": _FUNC_COMPLETION_PROMPT, "stop": _FUNC_COMPLETION_STOP, "n": 2, "cache_seed": 2},
+    {"model": DEFAULT_MODEL, "prompt": _FUNC_COMPLETION_PROMPT, "stop": _FUNC_COMPLETION_STOP, "n": 1, "cache_seed": 2},
 ]
 
 
@@ -707,9 +656,7 @@ class PassAssertionFilter:
     def pass_assertions(self, context, response, **_):
         """(openai<1) Check if the response passes the assertions."""
         responses = oai.Completion.extract_text(response)
-        metrics = eval_function_completions(
-            responses, context["definition"], assertions=self._assertions
-        )
+        metrics = eval_function_completions(responses, context["definition"], assertions=self._assertions)
         self._assertions = metrics["assertions"]
         self.cost += metrics["gen_cost"]
         self.metrics = metrics
@@ -720,10 +667,8 @@ class PassAssertionFilter:
 def implement(
     definition: str,
     configs: Optional[List[Dict]] = None,
-    assertions: Optional[
-        Union[str, Callable[[str], Tuple[str, float]]]
-    ] = generate_assertions,
-) -> tuple[Any, Union[int, Any], Any]:
+    assertions: Optional[Union[str, Callable[[str], Tuple[str, float]]]] = generate_assertions,
+) -> Tuple[str, float]:
     """(openai<1) Implement a function from a definition.
 
     Args:
@@ -742,16 +687,11 @@ def implement(
         assertions, cost = assertions(definition)
     assertion_filter = PassAssertionFilter(assertions)
     response = oai.Completion.create(
-        {"definition": definition},
-        config_list=configs,
-        filter_func=assertion_filter.pass_assertions,
+        {"definition": definition}, config_list=configs, filter_func=assertion_filter.pass_assertions
     )
     cost += assertion_filter.cost + response["cost"]
-    return (
-        assertion_filter.responses[assertion_filter.metrics["index_selected"]],
-        cost,
-        response["config_id"],
-    )
+    return assertion_filter.responses[assertion_filter.metrics["index_selected"]], cost, response["config_id"]
+
 
 
 def remove_triple_quotes(text):
