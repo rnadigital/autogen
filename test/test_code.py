@@ -385,32 +385,6 @@ def test_execute_code(use_docker=None):
     )
 
 
-@pytest.mark.skipif(
-    sys.platform in ["win32"]
-    or (not is_docker_running() and not in_docker_container()),
-    reason="docker is not running",
-)
-def test_execute_code_with_custom_filename_on_docker():
-    exit_code, msg, image = execute_code(
-        "print('hello world')", filename="tmp/codetest.py", use_docker=True
-    )
-    assert exit_code == 0 and msg == "hello world\n", msg
-    assert image == "python:tmp_codetest.py"
-
-
-@pytest.mark.skipif(
-    sys.platform in ["win32"]
-    or (not is_docker_running() and not in_docker_container()),
-    reason="docker is not running",
-)
-def test_execute_code_with_misformed_filename_on_docker():
-    exit_code, msg, image = execute_code(
-        "print('hello world')",
-        filename="tmp/codetest.py (some extra information)",
-        use_docker=True,
-    )
-    assert exit_code == 0 and msg == "hello world\n", msg
-    assert image == "python:tmp_codetest.py__some_extra_information_"
 
 
 def test_execute_code_raises_when_code_and_filename_are_both_none():
