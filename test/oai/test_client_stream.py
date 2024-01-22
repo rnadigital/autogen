@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from unittest.mock import MagicMock
 import pytest
 from autogen import OpenAIWrapper, config_list_from_json, config_list_openai_aoai
@@ -10,7 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from conftest import skip_openai  # noqa: E402
 
 try:
-    from openai import OpenAI
+    pass
 except ImportError:
     skip = True
 else:
@@ -37,7 +37,9 @@ def test_aoai_chat_completion_stream() -> None:
         filter_dict={"api_type": ["azure"], "model": ["gpt-3.5-turbo", "gpt-35-turbo"]},
     )
     client = OpenAIWrapper(config_list=config_list)
-    response = client.create(messages=[{"role": "user", "content": "2+2="}], stream=True)
+    response = client.create(
+        messages=[{"role": "user", "content": "2+2="}], stream=True
+    )
     print(response)
     print(client.extract_text_or_completion_object(response))
 
@@ -50,7 +52,9 @@ def test_chat_completion_stream() -> None:
         filter_dict={"model": ["gpt-3.5-turbo", "gpt-35-turbo"]},
     )
     client = OpenAIWrapper(config_list=config_list)
-    response = client.create(messages=[{"role": "user", "content": "1+1="}], stream=True)
+    response = client.create(
+        messages=[{"role": "user", "content": "1+1="}], stream=True
+    )
     print(response)
     print(client.extract_text_or_completion_object(response))
 
@@ -100,13 +104,19 @@ def test__update_function_call_from_chunk() -> None:
         ChoiceDeltaFunctionCall(arguments=" Francisco", name=None),
         ChoiceDeltaFunctionCall(arguments='"}', name=None),
     ]
-    expected = {"name": "get_current_weather", "arguments": '{"location":"San Francisco"}'}
+    expected = {
+        "name": "get_current_weather",
+        "arguments": '{"location":"San Francisco"}',
+    }
 
     full_function_call = None
     completion_tokens = 0
     for function_call_chunk in function_call_chunks:
         # print(f"{function_call_chunk=}")
-        full_function_call, completion_tokens = OpenAIWrapper._update_function_call_from_chunk(
+        (
+            full_function_call,
+            completion_tokens,
+        ) = OpenAIWrapper._update_function_call_from_chunk(
             function_call_chunk=function_call_chunk,
             full_function_call=full_function_call,
             completion_tokens=completion_tokens,
@@ -118,7 +128,9 @@ def test__update_function_call_from_chunk() -> None:
     assert full_function_call == expected
     assert completion_tokens == len(function_call_chunks)
 
-    ChatCompletionMessage(role="assistant", function_call=full_function_call, content=None)
+    ChatCompletionMessage(
+        role="assistant", function_call=full_function_call, content=None
+    )
 
 
 @pytest.mark.skipif(skip, reason="openai>=1 not installed")
@@ -127,53 +139,96 @@ def test__update_tool_calls_from_chunk() -> None:
         ChoiceDeltaToolCall(
             index=0,
             id="call_D2HOWGMekmkxXu9Ix3DUqJRv",
-            function=ChoiceDeltaToolCallFunction(arguments="", name="get_current_weather"),
+            function=ChoiceDeltaToolCallFunction(
+                arguments="", name="get_current_weather"
+            ),
             type="function",
         ),
         ChoiceDeltaToolCall(
-            index=0, id=None, function=ChoiceDeltaToolCallFunction(arguments='{"lo', name=None), type=None
+            index=0,
+            id=None,
+            function=ChoiceDeltaToolCallFunction(arguments='{"lo', name=None),
+            type=None,
         ),
         ChoiceDeltaToolCall(
-            index=0, id=None, function=ChoiceDeltaToolCallFunction(arguments="catio", name=None), type=None
+            index=0,
+            id=None,
+            function=ChoiceDeltaToolCallFunction(arguments="catio", name=None),
+            type=None,
         ),
         ChoiceDeltaToolCall(
-            index=0, id=None, function=ChoiceDeltaToolCallFunction(arguments='n": "S', name=None), type=None
+            index=0,
+            id=None,
+            function=ChoiceDeltaToolCallFunction(arguments='n": "S', name=None),
+            type=None,
         ),
         ChoiceDeltaToolCall(
-            index=0, id=None, function=ChoiceDeltaToolCallFunction(arguments="an F", name=None), type=None
+            index=0,
+            id=None,
+            function=ChoiceDeltaToolCallFunction(arguments="an F", name=None),
+            type=None,
         ),
         ChoiceDeltaToolCall(
-            index=0, id=None, function=ChoiceDeltaToolCallFunction(arguments="ranci", name=None), type=None
+            index=0,
+            id=None,
+            function=ChoiceDeltaToolCallFunction(arguments="ranci", name=None),
+            type=None,
         ),
         ChoiceDeltaToolCall(
-            index=0, id=None, function=ChoiceDeltaToolCallFunction(arguments="sco, C", name=None), type=None
+            index=0,
+            id=None,
+            function=ChoiceDeltaToolCallFunction(arguments="sco, C", name=None),
+            type=None,
         ),
         ChoiceDeltaToolCall(
-            index=0, id=None, function=ChoiceDeltaToolCallFunction(arguments='A"}', name=None), type=None
+            index=0,
+            id=None,
+            function=ChoiceDeltaToolCallFunction(arguments='A"}', name=None),
+            type=None,
         ),
         ChoiceDeltaToolCall(
             index=1,
             id="call_22HgJep4nwoKU3UOr96xaLmd",
-            function=ChoiceDeltaToolCallFunction(arguments="", name="get_current_weather"),
+            function=ChoiceDeltaToolCallFunction(
+                arguments="", name="get_current_weather"
+            ),
             type="function",
         ),
         ChoiceDeltaToolCall(
-            index=1, id=None, function=ChoiceDeltaToolCallFunction(arguments='{"lo', name=None), type=None
+            index=1,
+            id=None,
+            function=ChoiceDeltaToolCallFunction(arguments='{"lo', name=None),
+            type=None,
         ),
         ChoiceDeltaToolCall(
-            index=1, id=None, function=ChoiceDeltaToolCallFunction(arguments="catio", name=None), type=None
+            index=1,
+            id=None,
+            function=ChoiceDeltaToolCallFunction(arguments="catio", name=None),
+            type=None,
         ),
         ChoiceDeltaToolCall(
-            index=1, id=None, function=ChoiceDeltaToolCallFunction(arguments='n": "N', name=None), type=None
+            index=1,
+            id=None,
+            function=ChoiceDeltaToolCallFunction(arguments='n": "N', name=None),
+            type=None,
         ),
         ChoiceDeltaToolCall(
-            index=1, id=None, function=ChoiceDeltaToolCallFunction(arguments="ew Y", name=None), type=None
+            index=1,
+            id=None,
+            function=ChoiceDeltaToolCallFunction(arguments="ew Y", name=None),
+            type=None,
         ),
         ChoiceDeltaToolCall(
-            index=1, id=None, function=ChoiceDeltaToolCallFunction(arguments="ork, ", name=None), type=None
+            index=1,
+            id=None,
+            function=ChoiceDeltaToolCallFunction(arguments="ork, ", name=None),
+            type=None,
         ),
         ChoiceDeltaToolCall(
-            index=1, id=None, function=ChoiceDeltaToolCallFunction(arguments='NY"}', name=None), type=None
+            index=1,
+            id=None,
+            function=ChoiceDeltaToolCallFunction(arguments='NY"}', name=None),
+            type=None,
         ),
     ]
 
@@ -181,7 +236,10 @@ def test__update_tool_calls_from_chunk() -> None:
     completion_tokens = 0
     for tool_calls_chunk in tool_calls_chunks:
         index = tool_calls_chunk.index
-        full_tool_calls[index], completion_tokens = OpenAIWrapper._update_tool_calls_from_chunk(
+        (
+            full_tool_calls[index],
+            completion_tokens,
+        ) = OpenAIWrapper._update_tool_calls_from_chunk(
             tool_calls_chunk=tool_calls_chunk,
             full_tool_call=full_tool_calls[index],
             completion_tokens=completion_tokens,
@@ -219,7 +277,12 @@ def test_chat_functions_stream() -> None:
     ]
     client = OpenAIWrapper(config_list=config_list)
     response = client.create(
-        messages=[{"role": "user", "content": "What's the weather like today in San Francisco?"}],
+        messages=[
+            {
+                "role": "user",
+                "content": "What's the weather like today in San Francisco?",
+            }
+        ],
         functions=functions,
         stream=True,
     )
@@ -258,7 +321,12 @@ def test_chat_tools_stream() -> None:
     client = OpenAIWrapper(config_list=config_list)
     response = client.create(
         # the intention is to trigger two tool invocations as a response to a single message
-        messages=[{"role": "user", "content": "What's the weather like today in San Francisco and New York?"}],
+        messages=[
+            {
+                "role": "user",
+                "content": "What's the weather like today in San Francisco and New York?",
+            }
+        ],
         tools=tools,
         stream=True,
     )
@@ -287,7 +355,11 @@ def test_completion_stream() -> None:
     config_list = config_list_openai_aoai(KEY_LOC)
     client = OpenAIWrapper(config_list=config_list)
     # Azure can't have dot in model/deployment name
-    model = "gpt-35-turbo-instruct" if config_list[0].get("api_type") == "azure" else "gpt-3.5-turbo-instruct"
+    model = (
+        "gpt-35-turbo-instruct"
+        if config_list[0].get("api_type") == "azure"
+        else "gpt-3.5-turbo-instruct"
+    )
     response = client.create(prompt="1+1=", model=model, stream=True)
     print(response)
     print(client.extract_text_or_completion_object(response))

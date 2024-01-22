@@ -11,13 +11,22 @@ from collections import defaultdict
 from uuid import uuid4
 from datetime import datetime
 from autogen import Cache
-from typing import Any, Awaitable, Callable, Dict, List, Literal, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 from autogen import OpenAIWrapper
 from .agent import Agent
 from socketio.simple_client import SimpleClient
 
 from autogen.code_utils import (
-    DEFAULT_MODEL,
     UNKNOWN,
     content_str,
     check_can_use_docker_or_throw,
@@ -29,7 +38,11 @@ from autogen.code_utils import (
 )
 
 
-from ..function_utils import get_function_schema, load_basemodels_if_needed, serialize_to_str
+from ..function_utils import (
+    get_function_schema,
+    load_basemodels_if_needed,
+    serialize_to_str,
+)
 from .agent import Agent
 from .._pydantic import model_dump
 
@@ -64,25 +77,27 @@ class ConversableAgent(Agent):
     """
 
     DEFAULT_CONFIG = {}  # An empty configuration
-    MAX_CONSECUTIVE_AUTO_REPLY = 100  # maximum number of consecutive auto replies (subject to future change)
+    MAX_CONSECUTIVE_AUTO_REPLY = (
+        100  # maximum number of consecutive auto replies (subject to future change)
+    )
 
     llm_config: Union[Dict, Literal[False]]
 
     def __init__(
-            self,
-            name: str,
-            system_message: Optional[Union[str, List]] = "You are a helpful AI Assistant.",
-            is_termination_msg: Optional[Callable[[Dict], bool]] = None,
-            max_consecutive_auto_reply: Optional[int] = None,
-            human_input_mode: Optional[str] = "TERMINATE",
-            function_map: Optional[Dict[str, Callable]] = None,
-            code_execution_config: Optional[Union[Dict, Literal[False]]] = None,
-            llm_config: Optional[Union[Dict, Literal[False]]] = None,
-            default_auto_reply: Optional[Union[str, Dict, None]] = "",
-            use_sockets: Optional[Union[bool, None]] = False,
-            socket_client: Optional[Union[SimpleClient, bool]] = None,
-            sid: Optional[Union[str, None]] = "",
-            description: Optional[str] = None,
+        self,
+        name: str,
+        system_message: Optional[Union[str, List]] = "You are a helpful AI Assistant.",
+        is_termination_msg: Optional[Callable[[Dict], bool]] = None,
+        max_consecutive_auto_reply: Optional[int] = None,
+        human_input_mode: Optional[str] = "TERMINATE",
+        function_map: Optional[Dict[str, Callable]] = None,
+        code_execution_config: Optional[Union[Dict, Literal[False]]] = None,
+        llm_config: Optional[Union[Dict, Literal[False]]] = None,
+        default_auto_reply: Optional[Union[str, Dict, None]] = "",
+        use_sockets: Optional[Union[bool, None]] = False,
+        socket_client: Optional[Union[SimpleClient, bool]] = None,
+        sid: Optional[Union[str, None]] = "",
+        description: Optional[str] = None,
     ):
         """
         Args:
@@ -161,14 +176,22 @@ class ConversableAgent(Agent):
 
         self.human_input_mode = human_input_mode
         self._max_consecutive_auto_reply = (
-            max_consecutive_auto_reply if max_consecutive_auto_reply is not None else self.MAX_CONSECUTIVE_AUTO_REPLY
+            max_consecutive_auto_reply
+            if max_consecutive_auto_reply is not None
+            else self.MAX_CONSECUTIVE_AUTO_REPLY
         )
         self._consecutive_auto_reply_counter = defaultdict(int)
-        self._max_consecutive_auto_reply_dict = defaultdict(self.max_consecutive_auto_reply)
+        self._max_consecutive_auto_reply_dict = defaultdict(
+            self.max_consecutive_auto_reply
+        )
         self._function_map = (
             {}
             if function_map is None
-            else {name: callable for name, callable in function_map.items() if self._assert_valid_name(name)}
+            else {
+                name: callable
+                for name, callable in function_map.items()
+                if self._assert_valid_name(name)
+            }
         )
         self._default_auto_reply = default_auto_reply
         self._reply_func_list = []
@@ -181,24 +204,46 @@ class ConversableAgent(Agent):
         if self.use_sockets:
             self.socket_client = socket_client
             if not self.sid:
-                raise Exception("no Session ID was provided although use_sockets was set to True")
+                raise Exception(
+                    "no Session ID was provided although use_sockets was set to True"
+                )
         self.register_reply([Agent, None], ConversableAgent.generate_oai_reply)
-        self.register_reply([Agent, None], ConversableAgent.a_generate_oai_reply, ignore_async_in_sync_chat=True)
-        self.register_reply([Agent, None], ConversableAgent.generate_code_execution_reply)
-        self.register_reply([Agent, None], ConversableAgent.generate_tool_calls_reply)
-        self.register_reply([Agent, None], ConversableAgent.a_generate_tool_calls_reply, ignore_async_in_sync_chat=True)
-        self.register_reply([Agent, None], ConversableAgent.generate_function_call_reply)
         self.register_reply(
-            [Agent, None], ConversableAgent.a_generate_function_call_reply, ignore_async_in_sync_chat=True
+            [Agent, None],
+            ConversableAgent.a_generate_oai_reply,
+            ignore_async_in_sync_chat=True,
         )
-        self.register_reply([Agent, None], ConversableAgent.check_termination_and_human_reply)
         self.register_reply(
-            [Agent, None], ConversableAgent.a_check_termination_and_human_reply, ignore_async_in_sync_chat=True
+            [Agent, None], ConversableAgent.generate_code_execution_reply
+        )
+        self.register_reply([Agent, None], ConversableAgent.generate_tool_calls_reply)
+        self.register_reply(
+            [Agent, None],
+            ConversableAgent.a_generate_tool_calls_reply,
+            ignore_async_in_sync_chat=True,
+        )
+        self.register_reply(
+            [Agent, None], ConversableAgent.generate_function_call_reply
+        )
+        self.register_reply(
+            [Agent, None],
+            ConversableAgent.a_generate_function_call_reply,
+            ignore_async_in_sync_chat=True,
+        )
+        self.register_reply(
+            [Agent, None], ConversableAgent.check_termination_and_human_reply
+        )
+        self.register_reply(
+            [Agent, None],
+            ConversableAgent.a_check_termination_and_human_reply,
+            ignore_async_in_sync_chat=True,
         )
 
         # Registered hooks are kept in lists, indexed by hookable method, to be called in their order of registration.
         # New hookable methods should be added to this list as required to support new agent capabilities.
-        self.hook_lists = {self.process_last_message: []}  # This is currently the only hookable method.
+        self.hook_lists = {
+            self.process_last_message: []
+        }  # This is currently the only hookable method.
 
     def register_reply(
         self,
@@ -257,7 +302,9 @@ class ConversableAgent(Agent):
                 The function returns None. Signature: ```def reset_config(config: Any)```
         """
         if not isinstance(trigger, (type, str, Agent, Callable, list)):
-            raise ValueError("trigger must be a class, a string, an agent, a callable or a list.")
+            raise ValueError(
+                "trigger must be a class, a string, an agent, a callable or a list."
+            )
         self._reply_func_list.insert(
             position,
             {
@@ -284,7 +331,9 @@ class ConversableAgent(Agent):
         """
         self._oai_system_message[0]["content"] = system_message
 
-    def update_max_consecutive_auto_reply(self, value: int, sender: Optional[Agent] = None):
+    def update_max_consecutive_auto_reply(
+        self, value: int, sender: Optional[Agent] = None
+    ):
         """Update the maximum number of consecutive auto replies.
 
         Args:
@@ -300,7 +349,11 @@ class ConversableAgent(Agent):
 
     def max_consecutive_auto_reply(self, sender: Optional[Agent] = None) -> int:
         """The maximum number of consecutive auto replies."""
-        return self._max_consecutive_auto_reply if sender is None else self._max_consecutive_auto_reply_dict[sender]
+        return (
+            self._max_consecutive_auto_reply
+            if sender is None
+            else self._max_consecutive_auto_reply_dict[sender]
+        )
 
     @property
     def chat_messages(self) -> Dict[Agent, List[Dict]]:
@@ -325,7 +378,9 @@ class ConversableAgent(Agent):
             if n_conversations == 1:
                 for conversation in self._oai_messages.values():
                     return conversation[-1]
-            raise ValueError("More than one conversation is found. Please specify the sender to get the last message.")
+            raise ValueError(
+                "More than one conversation is found. Please specify the sender to get the last message."
+            )
         if agent not in self._oai_messages.keys():
             raise KeyError(
                 f"The agent '{agent.name}' is not present in any conversation. No history available for this agent."
@@ -337,7 +392,11 @@ class ConversableAgent(Agent):
         """Bool value of whether to use docker to execute the code,
         or str value of the docker image name to use, or None when code execution is disabled.
         """
-        return None if self._code_execution_config is False else self._code_execution_config.get("use_docker")
+        return (
+            None
+            if self._code_execution_config is False
+            else self._code_execution_config.get("use_docker")
+        )
 
     @staticmethod
     def _message_to_dict(message: Union[Dict, str]) -> Dict:
@@ -369,12 +428,18 @@ class ConversableAgent(Agent):
         For munging LLM responses use _normalize_name to ensure LLM specified names don't break the API.
         """
         if not re.match(r"^[a-zA-Z0-9_-]+$", name):
-            raise ValueError(f"Invalid name: {name}. Only letters, numbers, '_' and '-' are allowed.")
+            raise ValueError(
+                f"Invalid name: {name}. Only letters, numbers, '_' and '-' are allowed."
+            )
         if len(name) > 64:
-            raise ValueError(f"Invalid name: {name}. Name must be less than 64 characters.")
+            raise ValueError(
+                f"Invalid name: {name}. Name must be less than 64 characters."
+            )
         return name
 
-    def _append_oai_message(self, message: Union[Dict, str], role, conversation_id: Agent) -> bool:
+    def _append_oai_message(
+        self, message: Union[Dict, str], role, conversation_id: Agent
+    ) -> bool:
         """Append a message to the ChatCompletion conversation.
 
         If the message received is a string, it will be put in the "content" field of the new dictionary.
@@ -396,12 +461,22 @@ class ConversableAgent(Agent):
         # create oai message to be appended to the oai conversation that can be passed to oai directly.
         oai_message = {
             k: message[k]
-            for k in ("content", "function_call", "tool_calls", "tool_responses", "tool_call_id", "name", "context")
+            for k in (
+                "content",
+                "function_call",
+                "tool_calls",
+                "tool_responses",
+                "tool_call_id",
+                "name",
+                "context",
+            )
             if k in message and message[k] is not None
         }
         if "content" not in oai_message:
             if "function_call" in oai_message or "tool_calls" in oai_message:
-                oai_message["content"] = None  # if only function_call is provided, content will be set to None.
+                oai_message[
+                    "content"
+                ] = None  # if only function_call is provided, content will be set to None.
             else:
                 return False
 
@@ -410,17 +485,21 @@ class ConversableAgent(Agent):
         else:
             oai_message["role"] = role
 
-        if oai_message.get("function_call", False) or oai_message.get("tool_calls", False):
-            oai_message["role"] = "assistant"  # only messages with role 'assistant' can have a function call.
+        if oai_message.get("function_call", False) or oai_message.get(
+            "tool_calls", False
+        ):
+            oai_message[
+                "role"
+            ] = "assistant"  # only messages with role 'assistant' can have a function call.
         self._oai_messages[conversation_id].append(oai_message)
         return True
 
     def send(
-            self,
-            message: Union[Dict, str],
-            recipient: Agent,
-            request_reply: Optional[bool] = None,
-            silent: Optional[bool] = False,
+        self,
+        message: Union[Dict, str],
+        recipient: Agent,
+        request_reply: Optional[bool] = None,
+        silent: Optional[bool] = False,
     ):
         """Send a message to another agent.
 
@@ -465,11 +544,11 @@ class ConversableAgent(Agent):
             )
 
     async def a_send(
-            self,
-            message: Union[Dict, str],
-            recipient: Agent,
-            request_reply: Optional[bool] = None,
-            silent: Optional[bool] = False,
+        self,
+        message: Union[Dict, str],
+        recipient: Agent,
+        request_reply: Optional[bool] = None,
+        silent: Optional[bool] = False,
     ):
         """(async) Send a message to another agent.
 
@@ -509,9 +588,7 @@ class ConversableAgent(Agent):
         if valid:
             await recipient.a_receive(message, self, request_reply, silent)
         else:
-            raise ValueError(
-                "where content or function_call must be provided."
-            )
+            raise ValueError("where content or function_call must be provided.")
 
     def _print_received_message(self, message: Union[Dict, str], sender: Agent):
         # print the message received
@@ -541,14 +618,13 @@ class ConversableAgent(Agent):
                     content = OpenAIWrapper.instantiate(
                         content,
                         message["context"],
-                        self.llm_config and self.llm_config.get("allow_format_str_template", False),
+                        self.llm_config
+                        and self.llm_config.get("allow_format_str_template", False),
                     )
                 print(content_str(content), flush=True)
             if "function_call" in message and message["function_call"]:
                 function_call = dict(message["function_call"])
-                func_print = (
-                    f"***** Suggested function Call: {function_call.get('name', '(No function name found)')} *****"
-                )
+                func_print = f"***** Suggested function Call: {function_call.get('name', '(No function name found)')} *****"
                 print(colored(func_print, "green"), flush=True)
                 print(
                     "Arguments: \n",
@@ -573,16 +649,18 @@ class ConversableAgent(Agent):
 
         print("\n", "-" * 80, flush=True, sep="")
 
-    def _process_received_message(self, message: Union[Dict, str], sender: Agent, silent: bool):
+    def _process_received_message(
+        self, message: Union[Dict, str], sender: Agent, silent: bool
+    ):
         if isinstance(message, str):
             message = self._message_to_dict(message)
-            
+
         # When the agent receives a message, the role of the message is "user".
         # (If 'role' exists and is 'function', it will remain unchanged.)
         valid = self._append_oai_message(message, "user", sender)
         if not valid:
             raise ValueError(
-                """Received message can't be converted into a valid ChatCompletion message. 
+                """Received message can't be converted into a valid ChatCompletion message.
                 Either content or function_call must be provided."""
             )
         if not silent:
@@ -591,11 +669,11 @@ class ConversableAgent(Agent):
                 self._print_received_message(message, sender)
 
     def receive(
-            self,
-            messages: Union[Dict, str, list],
-            sender: Agent,
-            request_reply: Optional[bool] = None,
-            silent: Optional[bool] = False,
+        self,
+        messages: Union[Dict, str, list],
+        sender: Agent,
+        request_reply: Optional[bool] = None,
+        silent: Optional[bool] = False,
     ):
         """Receive a message from another agent.
 
@@ -621,18 +699,22 @@ class ConversableAgent(Agent):
             ValueError: if the message can't be converted into a valid ChatCompletion message.
         """
         self._process_received_message(messages, sender, silent)
-        if request_reply is False or request_reply is None and self.reply_at_receive[sender] is False:
+        if (
+            request_reply is False
+            or request_reply is None
+            and self.reply_at_receive[sender] is False
+        ):
             return
         reply = self.generate_reply(messages=self.chat_messages[sender], sender=sender)
         if reply is not None:
             self.send(reply, sender, silent=silent)
 
     async def a_receive(
-            self,
-            message: Union[Dict, str],
-            sender: Agent,
-            request_reply: Optional[bool] = None,
-            silent: Optional[bool] = False,
+        self,
+        message: Union[Dict, str],
+        sender: Agent,
+        request_reply: Optional[bool] = None,
+        silent: Optional[bool] = False,
     ):
         """(async) Receive a message from another agent.
 
@@ -658,13 +740,22 @@ class ConversableAgent(Agent):
             ValueError: if the message can't be converted into a valid ChatCompletion message.
         """
         self._process_received_message(message, sender, silent)
-        if request_reply is False or request_reply is None and self.reply_at_receive[sender] is False:
+        if (
+            request_reply is False
+            or request_reply is None
+            and self.reply_at_receive[sender] is False
+        ):
             return
         reply = await self.a_generate_reply(sender=sender)
         if reply is not None:
             await self.a_send(reply, sender, silent=silent)
 
-    def _prepare_chat(self, recipient: "ConversableAgent", clear_history: bool, prepare_recipient: bool = True) -> None:
+    def _prepare_chat(
+        self,
+        recipient: "ConversableAgent",
+        clear_history: bool,
+        prepare_recipient: bool = True,
+    ) -> None:
         self.reset_consecutive_auto_reply_counter(recipient)
         self.reply_at_receive[recipient] = True
         if clear_history:
@@ -682,7 +773,9 @@ class ConversableAgent(Agent):
             self._ignore_async_func_in_sync_chat_list
         )
 
-        async_reply_functions = [f for f in reply_functions if inspect.iscoroutinefunction(f)]
+        async_reply_functions = [
+            f for f in reply_functions if inspect.iscoroutinefunction(f)
+        ]
         if async_reply_functions != []:
             msg = (
                 "Async reply functions can only be used with ConversableAgent.a_initiate_chat(). The following async reply functions are found: "
@@ -754,7 +847,9 @@ class ConversableAgent(Agent):
         for agent in [self, recipient]:
             agent.previous_cache = agent.client_cache
             agent.client_cache = cache
-        await self.a_send(await self.a_generate_init_message(**context), recipient, silent=silent)
+        await self.a_send(
+            await self.a_generate_init_message(**context), recipient, silent=silent
+        )
         for agent in [self, recipient]:
             agent.client_cache = agent.previous_cache
             agent.previous_cache = None
@@ -798,17 +893,15 @@ class ConversableAgent(Agent):
             self._oai_messages[agent].clear()
 
     def send_message_to_socket(self, event: str, sender_name: str, message: dict):
-        self.socket_client.emit(event, {
-            "room": self.sid,
-            "authorName": sender_name,
-            "message": message
-        })
+        self.socket_client.emit(
+            event, {"room": self.sid, "authorName": sender_name, "message": message}
+        )
 
     def generate_oai_reply(
-            self,
-            messages: Optional[List[Dict]] = None,
-            sender: Optional[Agent] = None,
-            config: Optional[OpenAIWrapper] = None,
+        self,
+        messages: Optional[List[Dict]] = None,
+        sender: Optional[Agent] = None,
+        config: Optional[OpenAIWrapper] = None,
     ) -> Tuple[bool, Union[str, Dict, None]]:
         """Generate a reply using autogen.oai."""
         client = self.client if config is None else config
@@ -825,24 +918,34 @@ class ConversableAgent(Agent):
                 all_messages += tool_responses
                 # tool role on the parent message means the content is just concatenation of all of the tool_responses
                 if message.get("role") != "tool":
-                    all_messages.append({key: message[key] for key in message if key != "tool_responses"})
+                    all_messages.append(
+                        {
+                            key: message[key]
+                            for key in message
+                            if key != "tool_responses"
+                        }
+                    )
             else:
                 all_messages.append(message)
 
         # TODO: #1143 handle token limit exceeded error
-        self.llm_config[
-            "stream"] = self.use_sockets if sender else False  # do not send message if the sender is None, that is it's an internal system message
+        self.llm_config["stream"] = (
+            self.use_sockets if sender else False
+        )  # do not send message if the sender is None, that is it's an internal system message
         sender_name = self.speaker
-        self.llm_config["chunk_callback"] = lambda event, message: self.send_message_to_socket(event, sender_name,
-                                                                                               message)
+        self.llm_config[
+            "chunk_callback"
+        ] = lambda event, message: self.send_message_to_socket(
+            event, sender_name, message
+        )
         self.llm_config["sid"] = self.sid
         response = client.create(
             self.llm_config,
-            context=messages[-1].pop("context", None), 
+            context=messages[-1].pop("context", None),
             messages=self._oai_system_message + all_messages,
-            cache=self.client_cache
+            cache=self.client_cache,
         )
-        
+
         extracted_response = client.extract_text_or_completion_object(response)[0]
 
         # ensure function and tool calls will be accepted when sent back to the LLM
@@ -854,7 +957,9 @@ class ConversableAgent(Agent):
                     extracted_response["function_call"]["name"]
                 )
             for tool_call in extracted_response.get("tool_calls") or []:
-                tool_call["function"]["name"] = self._normalize_name(tool_call["function"]["name"])
+                tool_call["function"]["name"] = self._normalize_name(
+                    tool_call["function"]["name"]
+                )
         return True, extracted_response
 
     async def a_generate_oai_reply(
@@ -865,17 +970,22 @@ class ConversableAgent(Agent):
     ) -> Tuple[bool, Union[str, Dict, None]]:
         """Generate a reply using autogen.oai asynchronously."""
         return await asyncio.get_event_loop().run_in_executor(
-            None, functools.partial(self.generate_oai_reply, messages=messages, sender=sender, config=config)
+            None,
+            functools.partial(
+                self.generate_oai_reply, messages=messages, sender=sender, config=config
+            ),
         )
 
     def generate_code_execution_reply(
-            self,
-            messages: Optional[List[Dict]] = None,
-            sender: Optional[Agent] = None,
-            config: Optional[Union[Dict, Literal[False]]] = None,
+        self,
+        messages: Optional[List[Dict]] = None,
+        sender: Optional[Agent] = None,
+        config: Optional[Union[Dict, Literal[False]]] = None,
     ):
         """Generate a reply using code execution."""
-        code_execution_config = config if config is not None else self._code_execution_config
+        code_execution_config = (
+            config if config is not None else self._code_execution_config
+        )
         if code_execution_config is False:
             return False, None
         if messages is None:
@@ -908,20 +1018,26 @@ class ConversableAgent(Agent):
             # found code blocks, execute code and push "last_n_messages" back
             exitcode, logs = self.execute_code_blocks(code_blocks)
             code_execution_config["last_n_messages"] = last_n_messages
-            exitcode2str = "execution succeeded" if exitcode == 0 else "execution failed"
+            exitcode2str = (
+                "execution succeeded" if exitcode == 0 else "execution failed"
+            )
             if self.use_sockets:
                 message_uuid = str(uuid4())
-                self.send_message_to_socket("message", self.speaker, {
-                    "chunkId": message_uuid,
-                    # NOTE: may need language detection, rn letting markdown on frontend do it automatically
-                    "text": f"""```
+                self.send_message_to_socket(
+                    "message",
+                    self.speaker,
+                    {
+                        "chunkId": message_uuid,
+                        # NOTE: may need language detection, rn letting markdown on frontend do it automatically
+                        "text": f"""```
 {logs}
 ```""",
-                    "type": "logs",
-                    "first": True,
-                    "tokens": 0,
-                    "timestamp": datetime.now().timestamp() * 1000
-                })
+                        "type": "logs",
+                        "first": True,
+                        "tokens": 0,
+                        "timestamp": datetime.now().timestamp() * 1000,
+                    },
+                )
             return True, f"exitcode: {exitcode} ({exitcode2str})\nCode output: {logs}"
 
         # no code blocks are found, push last_n_messages back and return.
@@ -1019,7 +1135,12 @@ class ConversableAgent(Agent):
             return True, {
                 "role": "tool",
                 "tool_responses": tool_returns,
-                "content": "\n\n".join([self._str_for_tool_response(tool_return) for tool_return in tool_returns]),
+                "content": "\n\n".join(
+                    [
+                        self._str_for_tool_response(tool_return)
+                        for tool_return in tool_returns
+                    ]
+                ),
             }
         return False, None
 
@@ -1053,7 +1174,12 @@ class ConversableAgent(Agent):
             return True, {
                 "role": "tool",
                 "tool_responses": tool_returns,
-                "content": "\n\n".join([self._str_for_tool_response(tool_return) for tool_return in tool_returns]),
+                "content": "\n\n".join(
+                    [
+                        self._str_for_tool_response(tool_return)
+                        for tool_return in tool_returns
+                    ]
+                ),
             }
 
         return False, None
@@ -1094,18 +1220,27 @@ class ConversableAgent(Agent):
             reply = self.get_human_input(
                 f"""**{sender.name.replace("_", " ").title()}** is awaiting feedback.
 
-Press one of the buttons below or send a message to provide feedback:""", ["exit", "continue", "cancel"])
+Press one of the buttons below or send a message to provide feedback:""",
+                ["exit", "continue", "cancel"],
+            )
             no_human_input_msg = "NO HUMAN INPUT RECEIVED." if not reply else ""
             # if the human input is empty, and the message is a termination message, then we will terminate the conversation
             reply = reply if reply or not self._is_termination_msg(message) else "exit"
         else:
-            if self._consecutive_auto_reply_counter[sender] >= self._max_consecutive_auto_reply_dict[sender]:
+            if (
+                self._consecutive_auto_reply_counter[sender]
+                >= self._max_consecutive_auto_reply_dict[sender]
+            ):
                 if self.human_input_mode == "NEVER":
                     reply = "exit"
                 else:
                     # self.human_input_mode == "TERMINATE":
                     terminate = self._is_termination_msg(message)
-                    reply_options = ["exit", "cancel"] if terminate else ["exit", "continue", "cancel"]
+                    reply_options = (
+                        ["exit", "cancel"]
+                        if terminate
+                        else ["exit", "continue", "cancel"]
+                    )
                     reply = self.get_human_input(
                         f"""**{sender.name.replace("_", " ").title()}** is awaiting feedback.
 
@@ -1113,7 +1248,9 @@ Press one of the buttons below or send a message to provide feedback:"""
                         if terminate
                         else f"""**{sender.name.replace("_", " ").title()}** is awaiting feedback.
 
-Press one of the buttons below or send a message to provide feedback:""", reply_options)
+Press one of the buttons below or send a message to provide feedback:""",
+                        reply_options,
+                    )
                     no_human_input_msg = "NO HUMAN INPUT RECEIVED." if not reply else ""
                     # if the human input is empty, and the message is a termination message, then we will terminate the conversation
                     reply = reply if reply or not terminate else "exit"
@@ -1125,7 +1262,8 @@ Press one of the buttons below or send a message to provide feedback:""", reply_
                     reply = self.get_human_input(
                         f"""**{sender.name.replace("_", " ").title()}** is awaiting feedback.
 
-Press one of the buttons below or send a message to provide feedback:""", ["continue", "cancel"]
+Press one of the buttons below or send a message to provide feedback:""",
+                        ["continue", "cancel"],
                     )
                     no_human_input_msg = "NO HUMAN INPUT RECEIVED." if not reply else ""
                     # if the human input is empty, and the message is a termination message, then we will terminate the conversation
@@ -1142,8 +1280,11 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
             if self.use_sockets:
                 self.socket_client.emit(
                     "terminate",
-                    {"room": self.sid,
-                     "message": {"type": "termination", "sessionId": self.sid}})
+                    {
+                        "room": self.sid,
+                        "message": {"type": "termination", "sessionId": self.sid},
+                    },
+                )
             return True, None
 
         # send the human reply
@@ -1164,7 +1305,11 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
             if message.get("tool_calls", False):
                 tool_returns.extend(
                     [
-                        {"role": "tool", "tool_call_id": tool_call.get("id", ""), "content": "USER INTERRUPTED"}
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call.get("id", ""),
+                            "content": "USER INTERRUPTED",
+                        }
                         for tool_call in message["tool_calls"]
                     ]
                 )
@@ -1220,7 +1365,10 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
             # if the human input is empty, and the message is a termination message, then we will terminate the conversation
             reply = reply if reply or not self._is_termination_msg(message) else "exit"
         else:
-            if self._consecutive_auto_reply_counter[sender] >= self._max_consecutive_auto_reply_dict[sender]:
+            if (
+                self._consecutive_auto_reply_counter[sender]
+                >= self._max_consecutive_auto_reply_dict[sender]
+            ):
                 if self.human_input_mode == "NEVER":
                     reply = "exit"
                 else:
@@ -1274,7 +1422,11 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
             if message.get("tool_calls", False):
                 tool_returns.extend(
                     [
-                        {"role": "tool", "tool_call_id": tool_call.get("id", ""), "content": "USER INTERRUPTED"}
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call.get("id", ""),
+                            "content": "USER INTERRUPTED",
+                        }
                         for tool_call in message["tool_calls"]
                     ]
                 )
@@ -1293,10 +1445,10 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
         return False, None
 
     def generate_reply(
-            self,
-            messages: Optional[List[Dict]] = None,
-            sender: Optional[Agent] = None,
-            exclude: Optional[List[Callable]] = None,
+        self,
+        messages: Optional[List[Dict]] = None,
+        sender: Optional[Agent] = None,
+        exclude: Optional[List[Callable]] = None,
     ) -> Union[str, Dict, None]:
         """Reply based on the conversation history and the sender.
 
@@ -1343,16 +1495,21 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
             if inspect.iscoroutinefunction(reply_func):
                 continue
             if self._match_trigger(reply_func_tuple["trigger"], sender):
-                final, reply = reply_func(self, messages=messages, sender=sender, config=reply_func_tuple["config"])
+                final, reply = reply_func(
+                    self,
+                    messages=messages,
+                    sender=sender,
+                    config=reply_func_tuple["config"],
+                )
                 if final:
                     return reply
         return self._default_auto_reply
 
     async def a_generate_reply(
-            self,
-            messages: Optional[List[Dict]] = None,
-            sender: Optional[Agent] = None,
-            exclude: Optional[List[Callable]] = None,
+        self,
+        messages: Optional[List[Dict]] = None,
+        sender: Optional[Agent] = None,
+        exclude: Optional[List[Callable]] = None,
     ) -> Union[str, Dict, None]:
         """(async) Reply based on the conversation history and the sender.
 
@@ -1399,15 +1556,25 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
             if self._match_trigger(reply_func_tuple["trigger"], sender):
                 if inspect.iscoroutinefunction(reply_func):
                     final, reply = await reply_func(
-                        self, messages=messages, sender=sender, config=reply_func_tuple["config"]
+                        self,
+                        messages=messages,
+                        sender=sender,
+                        config=reply_func_tuple["config"],
                     )
                 else:
-                    final, reply = reply_func(self, messages=messages, sender=sender, config=reply_func_tuple["config"])
+                    final, reply = reply_func(
+                        self,
+                        messages=messages,
+                        sender=sender,
+                        config=reply_func_tuple["config"],
+                    )
                 if final:
                     return reply
         return self._default_auto_reply
 
-    def _match_trigger(self, trigger: Union[None, str, type, Agent, Callable, List], sender: Agent) -> bool:
+    def _match_trigger(
+        self, trigger: Union[None, str, type, Agent, Callable, List], sender: Agent
+    ) -> bool:
         """Check if the sender matches the trigger.
 
         Args:
@@ -1432,7 +1599,10 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
             return trigger == sender
         elif isinstance(trigger, Callable):
             rst = trigger(sender)
-            assert rst in [True, False], f"trigger {trigger} must return a boolean value."
+            assert rst in [
+                True,
+                False,
+            ], f"trigger {trigger} must return a boolean value."
             return rst
         elif isinstance(trigger, list):
             return any(self._match_trigger(t, sender) for t in trigger)
@@ -1457,14 +1627,27 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
                     print("Custom input function...")
                     self.socket_client.emit(
                         "message",
-                        {"room": sid, "type": "text", "isFeedback": True, "message": prompt, "options": options})
+                        {
+                            "room": sid,
+                            "type": "text",
+                            "isFeedback": True,
+                            "message": prompt,
+                            "options": options,
+                        },
+                    )
                     feedback = self.socket_client.receive()
                     return feedback[1]
                 except TimeoutError:
-                    self.socket_client.emit("message", {"room": sid, "type": "error", "message": "TimeOutError"})
+                    self.socket_client.emit(
+                        "message",
+                        {"room": sid, "type": "error", "message": "TimeOutError"},
+                    )
                     return "exit"
                 except Exception as e:
-                    self.socket_client.emit("message", {"room": sid, "type": "error", "message": f"Error: {e}"})
+                    self.socket_client.emit(
+                        "message",
+                        {"room": sid, "type": "error", "message": f"Error: {e}"},
+                    )
                     return "exit"
             case False:
                 reply = input(prompt)
@@ -1515,10 +1698,12 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
                 flush=True,
             )
             if lang in ["bash", "shell", "sh"]:
-                exitcode, logs, image = self.run_code(code, lang=lang, **self._code_execution_config)
+                exitcode, logs, image = self.run_code(
+                    code, lang=lang, **self._code_execution_config
+                )
             elif lang in ["python", "Python"]:
                 if code.startswith("# filename: "):
-                    filename = code[11: code.find("\n")].strip()
+                    filename = code[11 : code.find("\n")].strip()
                 else:
                     filename = None
                 exitcode, logs, image = self.run_code(
@@ -1537,17 +1722,21 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
                 # raise NotImplementedError
             if self.use_sockets:
                 message_uuid = str(uuid4())
-                self.send_message_to_socket("message", self.speaker, {
-                    "chunkId": message_uuid,
-                    # NOTE: may need language detection, rn letting markdown on frontend do it automatically
-                    "text": f"""```
+                self.send_message_to_socket(
+                    "message",
+                    self.speaker,
+                    {
+                        "chunkId": message_uuid,
+                        # NOTE: may need language detection, rn letting markdown on frontend do it automatically
+                        "text": f"""```
 {logs}
 ```""",
-                    "type": "logs",
-                    "first": True,
-                    "tokens": 0,
-                    "timestamp": datetime.now().timestamp() * 1000
-                })
+                        "type": "logs",
+                        "first": True,
+                        "tokens": 0,
+                        "timestamp": datetime.now().timestamp() * 1000,
+                    },
+                )
             if image is not None:
                 self._code_execution_config["use_docker"] = image
             logs_all += "\n" + logs
@@ -1585,7 +1774,9 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
             result.append(char)
         return "".join(result)
 
-    def execute_function(self, func_call, verbose: bool = False) -> Tuple[bool, Dict[str, str]]:
+    def execute_function(
+        self, func_call, verbose: bool = False
+    ) -> Tuple[bool, Dict[str, str]]:
         """Execute a function call and return the result.
 
         Override this function to modify the way to execute function and tool calls.
@@ -1630,22 +1821,28 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
 
         if self.use_sockets:
             message_uuid = str(uuid4())
-            self.send_message_to_socket("message", self.speaker, {
-                "chunkId": message_uuid,
-                # NOTE: may need language detection, rn letting markdown on frontend do it automatically
-                "text": f"""```bash
+            self.send_message_to_socket(
+                "message",
+                self.speaker,
+                {
+                    "chunkId": message_uuid,
+                    # NOTE: may need language detection, rn letting markdown on frontend do it automatically
+                    "text": f"""```bash
 {content}
 ```""",
-                "type": "logs",
-                "first": True,
-                "single": True,
-                "tokens": 0,
-                "timestamp": datetime.now().timestamp() * 1000
-            })
+                    "type": "logs",
+                    "first": True,
+                    "single": True,
+                    "tokens": 0,
+                    "timestamp": datetime.now().timestamp() * 1000,
+                },
+            )
 
         if verbose:
             print(
-                colored(f"\nInput arguments: {arguments}\nOutput:\n{content}", "magenta"),
+                colored(
+                    f"\nInput arguments: {arguments}\nOutput:\n{content}", "magenta"
+                ),
                 flush=True,
             )
 
@@ -1687,7 +1884,9 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
             # Try to execute the function
             if arguments is not None:
                 print(
-                    colored(f"\n>>>>>>>> EXECUTING ASYNC FUNCTION {func_name}...", "magenta"),
+                    colored(
+                        f"\n>>>>>>>> EXECUTING ASYNC FUNCTION {func_name}...", "magenta"
+                    ),
                     flush=True,
                 )
                 try:
@@ -1764,18 +1963,24 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
 
         if is_remove:
             if "functions" not in self.llm_config.keys():
-                error_msg = "The agent config doesn't have function {name}.".format(name=func_sig)
+                error_msg = "The agent config doesn't have function {name}.".format(
+                    name=func_sig
+                )
                 logger.error(error_msg)
                 raise AssertionError(error_msg)
             else:
                 self.llm_config["functions"] = [
-                    func for func in self.llm_config["functions"] if func["name"] != func_sig
+                    func
+                    for func in self.llm_config["functions"]
+                    if func["name"] != func_sig
                 ]
         else:
             self._assert_valid_name(func_sig["name"])
             if "functions" in self.llm_config.keys():
                 self.llm_config["functions"] = [
-                    func for func in self.llm_config["functions"] if func.get("name") != func_sig["name"]
+                    func
+                    for func in self.llm_config["functions"]
+                    if func.get("name") != func_sig["name"]
                 ] + [func_sig]
             else:
                 self.llm_config["functions"] = [func_sig]
@@ -1800,12 +2005,16 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
 
         if is_remove:
             if "tools" not in self.llm_config.keys():
-                error_msg = "The agent config doesn't have tool {name}.".format(name=tool_sig)
+                error_msg = "The agent config doesn't have tool {name}.".format(
+                    name=tool_sig
+                )
                 logger.error(error_msg)
                 raise AssertionError(error_msg)
             else:
                 self.llm_config["tools"] = [
-                    tool for tool in self.llm_config["tools"] if tool["function"]["name"] != tool_sig
+                    tool
+                    for tool in self.llm_config["tools"]
+                    if tool["function"]["name"] != tool_sig
                 ]
         else:
             self._assert_valid_name(tool_sig["function"]["name"])
@@ -1813,7 +2022,8 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
                 self.llm_config["tools"] = [
                     tool
                     for tool in self.llm_config["tools"]
-                    if tool.get("function", {}).get("name") != tool_sig["function"]["name"]
+                    if tool.get("function", {}).get("name")
+                    != tool_sig["function"]["name"]
                 ] + [tool_sig]
             else:
                 self.llm_config["tools"] = [tool_sig]
@@ -1858,7 +2068,9 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
             retval = await func(*args, **kwargs)
             return serialize_to_str(retval)
 
-        wrapped_func = _a_wrapped_func if inspect.iscoroutinefunction(func) else _wrapped_func
+        wrapped_func = (
+            _a_wrapped_func if inspect.iscoroutinefunction(func) else _wrapped_func
+        )
 
         # needed for testing
         wrapped_func._origin = func
@@ -1939,11 +2151,15 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
                     raise ValueError("Function description is required, none found.")
 
             # get JSON schema for the function
-            f = get_function_schema(func, name=func._name, description=func._description)
+            f = get_function_schema(
+                func, name=func._name, description=func._description
+            )
 
             # register the function to the agent if there is LLM config, raise an exception otherwise
             if self.llm_config is None:
-                raise RuntimeError("LLM config must be setup before registering a function for LLM.")
+                raise RuntimeError(
+                    "LLM config must be setup before registering a function for LLM."
+                )
 
             if api_style == "function":
                 f = f["function"]
@@ -2016,7 +2232,9 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
             hookable_method: A hookable method implemented by ConversableAgent.
             hook: A method implemented by a subclass of AgentCapability.
         """
-        assert hookable_method in self.hook_lists, f"{hookable_method} is not a hookable method."
+        assert (
+            hookable_method in self.hook_lists
+        ), f"{hookable_method} is not a hookable method."
         hook_list = self.hook_lists[hookable_method]
         assert hook not in hook_list, f"{hook} is already registered as a hook."
         hook_list.append(hook)
@@ -2060,7 +2278,9 @@ Press one of the buttons below or send a message to provide feedback:""", ["cont
         messages[-1]["content"] = processed_user_text
         return messages
 
-    def print_usage_summary(self, mode: Union[str, List[str]] = ["actual", "total"]) -> None:
+    def print_usage_summary(
+        self, mode: Union[str, List[str]] = ["actual", "total"]
+    ) -> None:
         """Print the usage summary."""
         if self.client is None:
             print(f"No cost incurred from agent '{self.name}'.")

@@ -4,7 +4,14 @@ import sqlite3
 import threading
 import os
 from typing import Any, List, Dict, Optional, Tuple
-from ..datamodel import AgentFlowSpec, AgentWorkFlowConfig, Gallery, Message, Session, Skill
+from ..datamodel import (
+    AgentFlowSpec,
+    AgentWorkFlowConfig,
+    Gallery,
+    Message,
+    Session,
+    Skill,
+)
 
 
 MESSAGES_TABLE_SQL = """
@@ -156,7 +163,9 @@ class DBManager:
 
         # init skills table with content of defaultskills.json in current directory
         current_dir = os.path.dirname(os.path.realpath(__file__))
-        with open(os.path.join(current_dir, "dbdefaults.json"), "r", encoding="utf-8") as json_file:
+        with open(
+            os.path.join(current_dir, "dbdefaults.json"), "r", encoding="utf-8"
+        ) as json_file:
             data = json.load(json_file)
             skills = data["skills"]
             agents = data["agents"]
@@ -165,11 +174,20 @@ class DBManager:
 
                 self.cursor.execute(
                     "INSERT INTO skills (id, user_id, timestamp, content, title, file_name) VALUES (?, ?, ?, ?, ?, ?)",
-                    (skill.id, "default", skill.timestamp, skill.content, skill.title, skill.file_name),
+                    (
+                        skill.id,
+                        "default",
+                        skill.timestamp,
+                        skill.content,
+                        skill.title,
+                        skill.file_name,
+                    ),
                 )
             for agent in agents:
                 agent = AgentFlowSpec(**agent)
-                agent.skills = [skill.dict() for skill in agent.skills] if agent.skills else None
+                agent.skills = (
+                    [skill.dict() for skill in agent.skills] if agent.skills else None
+                )
                 self.cursor.execute(
                     "INSERT INTO agents (id, user_id, timestamp, config, type, skills, description) VALUES (?, ?, ?, ?, ?, ?, ?)",
                     (
@@ -203,7 +221,9 @@ class DBManager:
         # Commit the changes and close the connection
         self.conn.commit()
 
-    def query(self, query: str, args: Tuple = (), return_json: bool = False) -> List[Dict[str, Any]]:
+    def query(
+        self, query: str, args: Tuple = (), return_json: bool = False
+    ) -> List[Dict[str, Any]]:
         """
         Executes a given SQL query and returns the results.
 
@@ -221,10 +241,15 @@ class DBManager:
                 result = self.cursor.fetchall()
                 self.commit()
                 if return_json:
-                    result = [dict(zip([key[0] for key in self.cursor.description], row)) for row in result]
+                    result = [
+                        dict(zip([key[0] for key in self.cursor.description], row))
+                        for row in result
+                    ]
                 return result
         except Exception as e:
-            logger.error("Error running query with query %s and args %s: %s", query, args, e)
+            logger.error(
+                "Error running query with query %s and args %s: %s", query, args, e
+            )
             raise e
 
     def commit(self) -> None:
@@ -305,8 +330,15 @@ def create_session(user_id: str, session: Session, dbmanager: DBManager) -> List
     :param dbmanager: The DBManager instance to interact with the database
     :return: A list of dictionaries, each representing a session
     """
-    query = "INSERT INTO sessions (user_id, id, timestamp, flow_config) VALUES (?, ?, ?,?)"
-    args = (session.user_id, session.id, session.timestamp, json.dumps(session.flow_config.dict()))
+    query = (
+        "INSERT INTO sessions (user_id, id, timestamp, flow_config) VALUES (?, ?, ?,?)"
+    )
+    args = (
+        session.user_id,
+        session.id,
+        session.timestamp,
+        json.dumps(session.flow_config.dict()),
+    )
     dbmanager.query(query=query, args=args)
     sessions = get_sessions(user_id=user_id, dbmanager=dbmanager)
 
@@ -333,7 +365,9 @@ def delete_session(session: Session, dbmanager: DBManager) -> List[dict]:
     return get_sessions(user_id=session.user_id, dbmanager=dbmanager)
 
 
-def create_gallery(session: Session, dbmanager: DBManager, tags: List[str] = []) -> Gallery:
+def create_gallery(
+    session: Session, dbmanager: DBManager, tags: List[str] = []
+) -> Gallery:
     """
     Publish a session to the gallery table in the database. Fetches the session messages first, then saves session and messages object to the gallery database table.
     :param session: The Session object containing session data
@@ -342,7 +376,9 @@ def create_gallery(session: Session, dbmanager: DBManager, tags: List[str] = [])
     :return: A gallery object containing the session and messages objects
     """
 
-    messages = get_messages(user_id=session.user_id, session_id=session.id, dbmanager=dbmanager)
+    messages = get_messages(
+        user_id=session.user_id, session_id=session.id, dbmanager=dbmanager
+    )
     gallery_item = Gallery(session=session, messages=messages, tags=tags)
     query = "INSERT INTO gallery (id, session, messages, tags, timestamp) VALUES (?, ?, ?, ?,?)"
     args = (
@@ -433,7 +469,14 @@ def upsert_skill(skill: Skill, dbmanager: DBManager) -> List[Skill]:
         update_item("skills", skill.id, updated_data, dbmanager)
     else:
         query = "INSERT INTO skills (id, user_id, timestamp, content, title, file_name) VALUES (?, ?, ?, ?, ?, ?)"
-        args = (skill.id, skill.user_id, skill.timestamp, skill.content, skill.title, skill.file_name)
+        args = (
+            skill.id,
+            skill.user_id,
+            skill.timestamp,
+            skill.content,
+            skill.title,
+            skill.file_name,
+        )
         dbmanager.query(query=query, args=args)
 
     skills = get_skills(user_id=skill.user_id, dbmanager=dbmanager)
@@ -458,7 +501,11 @@ def delete_skill(skill: Skill, dbmanager: DBManager) -> List[Skill]:
 
 
 def delete_message(
-    user_id: str, msg_id: str, session_id: str, dbmanager: DBManager, delete_all: bool = False
+    user_id: str,
+    msg_id: str,
+    session_id: str,
+    dbmanager: DBManager,
+    delete_all: bool = False,
 ) -> List[dict]:
     """
     Delete a specific message or all messages for a user and session from the database.
@@ -477,10 +524,14 @@ def delete_message(
         dbmanager.query(query=query, args=args)
         return []
     else:
-        query = "DELETE FROM messages WHERE user_id = ? AND msg_id = ? AND session_id = ?"
+        query = (
+            "DELETE FROM messages WHERE user_id = ? AND msg_id = ? AND session_id = ?"
+        )
         args = (user_id, msg_id, session_id)
         dbmanager.query(query=query, args=args)
-        messages = get_messages(user_id=user_id, session_id=session_id, dbmanager=dbmanager)
+        messages = get_messages(
+            user_id=user_id, session_id=session_id, dbmanager=dbmanager
+        )
         return messages
 
 
@@ -507,7 +558,9 @@ def get_agents(user_id: str, dbmanager: DBManager) -> List[AgentFlowSpec]:
     return agents
 
 
-def upsert_agent(agent_flow_spec: AgentFlowSpec, dbmanager: DBManager) -> List[Dict[str, Any]]:
+def upsert_agent(
+    agent_flow_spec: AgentFlowSpec, dbmanager: DBManager
+) -> List[Dict[str, Any]]:
     """
     Insert or update an agent for a specific user in the database.
 
@@ -528,7 +581,11 @@ def upsert_agent(agent_flow_spec: AgentFlowSpec, dbmanager: DBManager) -> List[D
             "config": json.dumps(agent_flow_spec.config.dict()),
             "type": agent_flow_spec.type,
             "description": agent_flow_spec.description,
-            "skills": json.dumps([x.dict() for x in agent_flow_spec.skills] if agent_flow_spec.skills else []),
+            "skills": json.dumps(
+                [x.dict() for x in agent_flow_spec.skills]
+                if agent_flow_spec.skills
+                else []
+            ),
         }
         update_item("agents", agent_flow_spec.id, updated_data, dbmanager)
     else:
@@ -541,7 +598,11 @@ def upsert_agent(agent_flow_spec: AgentFlowSpec, dbmanager: DBManager) -> List[D
             config_json,
             agent_flow_spec.type,
             agent_flow_spec.description,
-            json.dumps([x.dict() for x in agent_flow_spec.skills] if agent_flow_spec.skills else []),
+            json.dumps(
+                [x.dict() for x in agent_flow_spec.skills]
+                if agent_flow_spec.skills
+                else []
+            ),
         )
         dbmanager.query(query=query, args=args)
 
@@ -566,14 +627,18 @@ def delete_agent(agent: AgentFlowSpec, dbmanager: DBManager) -> List[Dict[str, A
     return get_agents(user_id=agent.user_id, dbmanager=dbmanager)
 
 
-def get_item_by_field(table: str, field: str, value: Any, dbmanager: DBManager) -> Optional[Dict[str, Any]]:
+def get_item_by_field(
+    table: str, field: str, value: Any, dbmanager: DBManager
+) -> Optional[Dict[str, Any]]:
     query = f"SELECT * FROM {table} WHERE {field} = ?"
     args = (value,)
     result = dbmanager.query(query=query, args=args)
     return result[0] if result else None
 
 
-def update_item(table: str, item_id: str, updated_data: Dict[str, Any], dbmanager: DBManager) -> None:
+def update_item(
+    table: str, item_id: str, updated_data: Dict[str, Any], dbmanager: DBManager
+) -> None:
     set_clause = ", ".join([f"{key} = ?" for key in updated_data.keys()])
     query = f"UPDATE {table} SET {set_clause} WHERE id = ?"
     args = (*updated_data.values(), item_id)
@@ -602,7 +667,9 @@ def get_workflows(user_id: str, dbmanager: DBManager) -> List[Dict[str, Any]]:
     return workflows
 
 
-def upsert_workflow(workflow: AgentWorkFlowConfig, dbmanager: DBManager) -> List[Dict[str, Any]]:
+def upsert_workflow(
+    workflow: AgentWorkFlowConfig, dbmanager: DBManager
+) -> List[Dict[str, Any]]:
     """
     Insert or update a workflow for a specific user in the database.
 
@@ -653,7 +720,9 @@ def upsert_workflow(workflow: AgentWorkFlowConfig, dbmanager: DBManager) -> List
     return get_workflows(user_id=workflow.user_id, dbmanager=dbmanager)
 
 
-def delete_workflow(workflow: AgentWorkFlowConfig, dbmanager: DBManager) -> List[Dict[str, Any]]:
+def delete_workflow(
+    workflow: AgentWorkFlowConfig, dbmanager: DBManager
+) -> List[Dict[str, Any]]:
     """
     Delete a workflow for a specific user from the database. If the workflow does not exist, do nothing.
 

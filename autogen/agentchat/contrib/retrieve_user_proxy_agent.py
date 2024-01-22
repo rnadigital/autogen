@@ -3,10 +3,16 @@ import re
 try:
     import chromadb
 except ImportError:
-    raise ImportError("Please install dependencies first. `pip install pyautogen[retrievechat]`")
+    raise ImportError(
+        "Please install dependencies first. `pip install pyautogen[retrievechat]`"
+    )
 from autogen.agentchat.agent import Agent
 from autogen.agentchat import UserProxyAgent
-from autogen.retrieve_utils import create_vector_db_from_dir, query_vector_db, TEXT_FORMATS
+from autogen.retrieve_utils import (
+    create_vector_db_from_dir,
+    query_vector_db,
+    TEXT_FORMATS,
+)
 from autogen.token_count_utils import count_token
 from autogen.code_utils import extract_code
 from autogen import logger
@@ -175,7 +181,9 @@ class RetrieveUserProxyAgent(UserProxyAgent):
         self._client = self._retrieve_config.get("client", chromadb.Client())
         self._docs_path = self._retrieve_config.get("docs_path", None)
         self._extra_docs = self._retrieve_config.get("extra_docs", False)
-        self._collection_name = self._retrieve_config.get("collection_name", "autogen-docs")
+        self._collection_name = self._retrieve_config.get(
+            "collection_name", "autogen-docs"
+        )
         if "docs_path" not in self._retrieve_config:
             logger.warning(
                 "docs_path is not provided in retrieve_config. "
@@ -184,21 +192,41 @@ class RetrieveUserProxyAgent(UserProxyAgent):
             )
         self._model = self._retrieve_config.get("model", "gpt-4")
         self._max_tokens = self.get_max_tokens(self._model)
-        self._chunk_token_size = int(self._retrieve_config.get("chunk_token_size", self._max_tokens * 0.4))
+        self._chunk_token_size = int(
+            self._retrieve_config.get("chunk_token_size", self._max_tokens * 0.4)
+        )
         self._chunk_mode = self._retrieve_config.get("chunk_mode", "multi_lines")
-        self._must_break_at_empty_line = self._retrieve_config.get("must_break_at_empty_line", True)
-        self._embedding_model = self._retrieve_config.get("embedding_model", "all-MiniLM-L6-v2")
+        self._must_break_at_empty_line = self._retrieve_config.get(
+            "must_break_at_empty_line", True
+        )
+        self._embedding_model = self._retrieve_config.get(
+            "embedding_model", "all-MiniLM-L6-v2"
+        )
         self._embedding_function = self._retrieve_config.get("embedding_function", None)
         self.customized_prompt = self._retrieve_config.get("customized_prompt", None)
-        self.customized_answer_prefix = self._retrieve_config.get("customized_answer_prefix", "").upper()
+        self.customized_answer_prefix = self._retrieve_config.get(
+            "customized_answer_prefix", ""
+        ).upper()
         self.update_context = self._retrieve_config.get("update_context", True)
-        self._get_or_create = self._retrieve_config.get("get_or_create", False) if self._docs_path is not None else True
-        self.custom_token_count_function = self._retrieve_config.get("custom_token_count_function", count_token)
-        self.custom_text_split_function = self._retrieve_config.get("custom_text_split_function", None)
-        self._custom_text_types = self._retrieve_config.get("custom_text_types", TEXT_FORMATS)
+        self._get_or_create = (
+            self._retrieve_config.get("get_or_create", False)
+            if self._docs_path is not None
+            else True
+        )
+        self.custom_token_count_function = self._retrieve_config.get(
+            "custom_token_count_function", count_token
+        )
+        self.custom_text_split_function = self._retrieve_config.get(
+            "custom_text_split_function", None
+        )
+        self._custom_text_types = self._retrieve_config.get(
+            "custom_text_types", TEXT_FORMATS
+        )
         self._recursive = self._retrieve_config.get("recursive", True)
         self._context_max_tokens = self._max_tokens * 0.8
-        self._collection = True if self._docs_path is None else False  # whether the collection is created
+        self._collection = (
+            True if self._docs_path is None else False
+        )  # whether the collection is created
         self._ipython = get_ipython()
         self._doc_idx = -1  # the index of the current used doc
         self._results = {}  # the results of the current query
@@ -208,9 +236,13 @@ class RetrieveUserProxyAgent(UserProxyAgent):
         self._search_string = ""  # the search string used in the current query
         # update the termination message function
         self._is_termination_msg = (
-            self._is_termination_msg_retrievechat if is_termination_msg is None else is_termination_msg
+            self._is_termination_msg_retrievechat
+            if is_termination_msg is None
+            else is_termination_msg
         )
-        self.register_reply(Agent, RetrieveUserProxyAgent._generate_retrieve_user_reply, position=2)
+        self.register_reply(
+            Agent, RetrieveUserProxyAgent._generate_retrieve_user_reply, position=2
+        )
 
     def _is_termination_msg_retrievechat(self, message):
         """Check if a message is a termination message.
@@ -285,13 +317,21 @@ class RetrieveUserProxyAgent(UserProxyAgent):
             print(colored("No more context, will terminate.", "green"), flush=True)
             return "TERMINATE"
         if self.customized_prompt:
-            message = self.customized_prompt.format(input_question=self.problem, input_context=doc_contents)
+            message = self.customized_prompt.format(
+                input_question=self.problem, input_context=doc_contents
+            )
         elif task.upper() == "CODE":
-            message = PROMPT_CODE.format(input_question=self.problem, input_context=doc_contents)
+            message = PROMPT_CODE.format(
+                input_question=self.problem, input_context=doc_contents
+            )
         elif task.upper() == "QA":
-            message = PROMPT_QA.format(input_question=self.problem, input_context=doc_contents)
+            message = PROMPT_QA.format(
+                input_question=self.problem, input_context=doc_contents
+            )
         elif task.upper() == "DEFAULT":
-            message = PROMPT_DEFAULT.format(input_question=self.problem, input_context=doc_contents)
+            message = PROMPT_DEFAULT.format(
+                input_question=self.problem, input_context=doc_contents
+            )
         else:
             raise NotImplementedError(f"task {task} is not implemented.")
         return message
@@ -301,8 +341,14 @@ class RetrieveUserProxyAgent(UserProxyAgent):
             message = message.get("content", "")
         elif not isinstance(message, str):
             message = ""
-        update_context_case1 = "UPDATE CONTEXT" in message[-20:].upper() or "UPDATE CONTEXT" in message[:20].upper()
-        update_context_case2 = self.customized_answer_prefix and self.customized_answer_prefix not in message.upper()
+        update_context_case1 = (
+            "UPDATE CONTEXT" in message[-20:].upper()
+            or "UPDATE CONTEXT" in message[:20].upper()
+        )
+        update_context_case2 = (
+            self.customized_answer_prefix
+            and self.customized_answer_prefix not in message.upper()
+        )
         return update_context_case1, update_context_case2
 
     def _generate_retrieve_user_reply(
@@ -323,7 +369,10 @@ class RetrieveUserProxyAgent(UserProxyAgent):
         message = messages[-1]
         update_context_case1, update_context_case2 = self._check_update_context(message)
         if (update_context_case1 or update_context_case2) and self.update_context:
-            print(colored("Updating context and resetting conversation.", "green"), flush=True)
+            print(
+                colored("Updating context and resetting conversation.", "green"),
+                flush=True,
+            )
             # extract the first sentence in the response as the intermediate answer
             _message = message.get("content", "").split("\n")[0].strip()
             _intermediate_info = re.split(r"(?<=[.!?])\s+", _message)
@@ -340,7 +389,9 @@ class RetrieveUserProxyAgent(UserProxyAgent):
                     for _tmp_retrieve_count in range(1, 5):
                         self._reset(intermediate=True)
                         self.retrieve_docs(
-                            self.problem, self.n_results * (2 * _tmp_retrieve_count + 1), self._search_string
+                            self.problem,
+                            self.n_results * (2 * _tmp_retrieve_count + 1),
+                            self._search_string,
                         )
                         doc_contents = self._get_context(self._results)
                         if doc_contents:
@@ -351,10 +402,14 @@ class RetrieveUserProxyAgent(UserProxyAgent):
                 for _tmp_retrieve_count in range(5):
                     self._reset(intermediate=True)
                     self.retrieve_docs(
-                        _intermediate_info[0], self.n_results * (2 * _tmp_retrieve_count + 1), self._search_string
+                        _intermediate_info[0],
+                        self.n_results * (2 * _tmp_retrieve_count + 1),
+                        self._search_string,
                     )
                     self._get_context(self._results)
-                    doc_contents = "\n".join(self._doc_contents)  # + "\n" + "\n".join(self._intermediate_answers)
+                    doc_contents = "\n".join(
+                        self._doc_contents
+                    )  # + "\n" + "\n".join(self._intermediate_answers)
                     if doc_contents:
                         break
 
@@ -414,7 +469,9 @@ class RetrieveUserProxyAgent(UserProxyAgent):
         self._results = results
         print("doc_ids: ", results["ids"])
 
-    def generate_init_message(self, problem: str, n_results: int = 20, search_string: str = ""):
+    def generate_init_message(
+        self, problem: str, n_results: int = 20, search_string: str = ""
+    ):
         """Generate an initial message with the given problem and prompt.
 
         Args:
@@ -435,7 +492,11 @@ class RetrieveUserProxyAgent(UserProxyAgent):
 
     def run_code(self, code, **kwargs):
         lang = kwargs.get("lang", None)
-        if code.startswith("!") or code.startswith("pip") or lang in ["bash", "shell", "sh"]:
+        if (
+            code.startswith("!")
+            or code.startswith("pip")
+            or lang in ["bash", "shell", "sh"]
+        ):
             return (
                 0,
                 "You MUST NOT install any packages because all the packages needed are already installed.",

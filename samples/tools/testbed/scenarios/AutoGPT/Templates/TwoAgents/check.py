@@ -38,12 +38,16 @@ def check():
     with open("../should_contain.txt", "r") as f:
         should_contain = eval(f.read())
         assert type(should_contain) == list, "TERMINATE\n"
-        should_contain = [base64.b64decode(encoded).decode("utf-8") for encoded in should_contain]
+        should_contain = [
+            base64.b64decode(encoded).decode("utf-8") for encoded in should_contain
+        ]
 
     with open("../should_not_contain.txt", "r") as f:
         should_not_contain = eval(f.read())
         assert type(should_not_contain) == list, "TERMINATE\n"
-        should_not_contain = [base64.b64decode(encoded).decode("utf-8") for encoded in should_not_contain]
+        should_not_contain = [
+            base64.b64decode(encoded).decode("utf-8") for encoded in should_not_contain
+        ]
 
     # Check if file pattern is a file extension
     if file_pattern.startswith("."):

@@ -104,7 +104,9 @@ def test_config_list_from_json():
             filter_dict={"model": ["gpt4", "gpt-4-32k"]},
         )
 
-        assert all(config.get("model") in ["gpt4", "gpt-4-32k"] for config in config_list_4)
+        assert all(
+            config.get("model") in ["gpt4", "gpt-4-32k"] for config in config_list_4
+        )
 
         # Test: the env variable is set to a file path.
         fd, temp_name = tempfile.mkstemp()
@@ -169,7 +171,10 @@ def test_config_list_openai_aoai_env_vars():
     # Test the config_list_openai_aoai function with environment variables set
     configs = autogen.oai.openai_utils.config_list_openai_aoai(key_file_path=None)
     assert len(configs) == 2
-    assert {"api_key": "test_openai_key", "base_url": "https://api.openai.com"} in configs
+    assert {
+        "api_key": "test_openai_key",
+        "base_url": "https://api.openai.com",
+    } in configs
     assert {
         "api_key": "test_aoai_key",
         "base_url": "https://api.azure.com",
@@ -191,8 +196,14 @@ def test_config_list_openai_aoai_env_vars_multi():
     # Test the config_list_openai_aoai function with multiple environment variable values (new line separated)
     configs = autogen.oai.openai_utils.config_list_openai_aoai()
     assert len(configs) == 4
-    assert {"api_key": "test_openai_key", "base_url": "https://api.openai.com"} in configs
-    assert {"api_key": "test_openai_key2", "base_url": "https://api.openai.com/v2"} in configs
+    assert {
+        "api_key": "test_openai_key",
+        "base_url": "https://api.openai.com",
+    } in configs
+    assert {
+        "api_key": "test_openai_key2",
+        "base_url": "https://api.openai.com/v2",
+    } in configs
     assert {
         "api_key": "test_aoai_key",
         "base_url": "https://api.azure.com",
@@ -228,32 +239,48 @@ def test_config_list_from_dotenv(mock_os_environ, caplog):
 
             # Check that configurations only include models specified in the filter
             for config in config_list:
-                assert config["model"] in FILTER_DICT["model"], f"Model {config['model']} not in filter"
+                assert (
+                    config["model"] in FILTER_DICT["model"]
+                ), f"Model {config['model']} not in filter"
 
             # Check the default API key for gpt-4 and gpt-3.5-turbo when model_api_key_map is None
-            config_list = autogen.config_list_from_dotenv(dotenv_file_path=temp_name, model_api_key_map=None)
+            config_list = autogen.config_list_from_dotenv(
+                dotenv_file_path=temp_name, model_api_key_map=None
+            )
 
             expected_api_key = os.getenv("OPENAI_API_KEY")
             assert any(
-                config["model"] == "gpt-4" and config["api_key"] == expected_api_key for config in config_list
+                config["model"] == "gpt-4" and config["api_key"] == expected_api_key
+                for config in config_list
             ), "Default gpt-4 configuration not found or incorrect"
             assert any(
-                config["model"] == "gpt-3.5-turbo" and config["api_key"] == expected_api_key for config in config_list
+                config["model"] == "gpt-3.5-turbo"
+                and config["api_key"] == expected_api_key
+                for config in config_list
             ), "Default gpt-3.5-turbo configuration not found or incorrect"
     finally:
-        os.remove(temp_name)  # The file is deleted after using its name (to prevent windows build from breaking)
+        os.remove(
+            temp_name
+        )  # The file is deleted after using its name (to prevent windows build from breaking)
 
     # Test with missing dotenv file
     with caplog.at_level(logging.WARNING):
-        config_list = autogen.config_list_from_dotenv(dotenv_file_path="non_existent_path")
-        assert "The specified .env file non_existent_path does not exist." in caplog.text
+        config_list = autogen.config_list_from_dotenv(
+            dotenv_file_path="non_existent_path"
+        )
+        assert (
+            "The specified .env file non_existent_path does not exist." in caplog.text
+        )
 
     # Test with invalid API key
     ENV_VARS["ANOTHER_API_KEY"] = ""  # Removing ANOTHER_API_KEY value
 
     with caplog.at_level(logging.WARNING):
         config_list = autogen.config_list_from_dotenv()
-        assert "No .env file found. Loading configurations from environment variables." in caplog.text
+        assert (
+            "No .env file found. Loading configurations from environment variables."
+            in caplog.text
+        )
         # The function does not return an empty list if at least one configuration is loaded successfully
         assert config_list != [], "Config list is empty"
 
@@ -263,7 +290,11 @@ def test_config_list_from_dotenv(mock_os_environ, caplog):
     }
     with caplog.at_level(logging.ERROR):
         # Mocking `config_list_from_json` to return an empty list and raise an exception when called
-        with mock.patch("autogen.config_list_from_json", return_value=[], side_effect=Exception("Mock called")):
+        with mock.patch(
+            "autogen.config_list_from_json",
+            return_value=[],
+            side_effect=Exception("Mock called"),
+        ):
             # Call the function with the invalid map
             config_list = autogen.config_list_from_dotenv(
                 model_api_key_map=invalid_model_api_key_map,
@@ -285,7 +316,9 @@ def test_config_list_from_dotenv(mock_os_environ, caplog):
 
     with caplog.at_level(logging.WARNING):
         # Call the function with the mixed validity map
-        config_list = autogen.config_list_from_dotenv(model_api_key_map=invalid_model_api_key_map)
+        config_list = autogen.config_list_from_dotenv(
+            model_api_key_map=invalid_model_api_key_map
+        )
         assert config_list, "Expected configurations to be loaded"
         assert any(
             config["model"] == "gpt-3.5-turbo" for config in config_list
@@ -299,7 +332,11 @@ def test_config_list_from_dotenv(mock_os_environ, caplog):
 def test_get_config_list():
     # Define a list of API keys and corresponding base URLs
     api_keys = ["key1", "key2", "key3"]
-    base_urls = ["https://api.service1.com", "https://api.service2.com", "https://api.service3.com"]
+    base_urls = [
+        "https://api.service1.com",
+        "https://api.service2.com",
+        "https://api.service3.com",
+    ]
     api_type = "openai"
     api_version = "v1"
 
@@ -316,31 +353,51 @@ def test_get_config_list():
 
     # Check that each config in the config_list has the correct structure and data
     for i, config in enumerate(config_list):
-        assert config["api_key"] == api_keys[i], f"The api_key for config {i} is incorrect."
-        assert config["base_url"] == base_urls[i], f"The base_url for config {i} is incorrect."
-        assert config["api_type"] == api_type, f"The api_type for config {i} is incorrect."
-        assert config["api_version"] == api_version, f"The api_version for config {i} is incorrect."
+        assert (
+            config["api_key"] == api_keys[i]
+        ), f"The api_key for config {i} is incorrect."
+        assert (
+            config["base_url"] == base_urls[i]
+        ), f"The base_url for config {i} is incorrect."
+        assert (
+            config["api_type"] == api_type
+        ), f"The api_type for config {i} is incorrect."
+        assert (
+            config["api_version"] == api_version
+        ), f"The api_version for config {i} is incorrect."
 
     # Test with mismatched lengths of api_keys and base_urls
     with pytest.raises(AssertionError) as exc_info:
         autogen.get_config_list(api_keys, base_urls[:2], api_type, api_version)
-    assert str(exc_info.value) == "The length of api_keys must match the length of base_urls"
+    assert (
+        str(exc_info.value)
+        == "The length of api_keys must match the length of base_urls"
+    )
 
     # Test with empty api_keys
     with pytest.raises(AssertionError) as exc_info:
         autogen.get_config_list([], base_urls, api_type, api_version)
-    assert str(exc_info.value) == "The length of api_keys must match the length of base_urls"
+    assert (
+        str(exc_info.value)
+        == "The length of api_keys must match the length of base_urls"
+    )
 
     # Test with None base_urls
-    config_list_without_base = autogen.get_config_list(api_keys, None, api_type, api_version)
+    config_list_without_base = autogen.get_config_list(
+        api_keys, None, api_type, api_version
+    )
     assert all(
         "base_url" not in config for config in config_list_without_base
     ), "The configs should not have base_url when None is provided."
 
     # Test with empty string in api_keys
     api_keys_with_empty = ["key1", "", "key3"]
-    config_list_with_empty_key = autogen.get_config_list(api_keys_with_empty, base_urls, api_type, api_version)
-    assert len(config_list_with_empty_key) == 2, "The config_list should exclude configurations with empty api_keys."
+    config_list_with_empty_key = autogen.get_config_list(
+        api_keys_with_empty, base_urls, api_type, api_version
+    )
+    assert (
+        len(config_list_with_empty_key) == 2
+    ), "The config_list should exclude configurations with empty api_keys."
 
 
 def test_tags():

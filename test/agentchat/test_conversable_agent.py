@@ -7,7 +7,6 @@ import unittest
 import inspect
 
 import pytest
-from unittest.mock import patch
 from pydantic import BaseModel, Field
 from typing_extensions import Annotated
 import autogen
@@ -17,7 +16,7 @@ from test_assistant_agent import KEY_LOC, OAI_CONFIG_LIST
 from conftest import skip_openai
 
 try:
-    import openai
+    pass
 except ImportError:
     skip = True
 else:
@@ -36,47 +35,69 @@ def conversable_agent():
 
 
 def test_sync_trigger():
-    agent = ConversableAgent("a0", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER")
-    agent1 = ConversableAgent("a1", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER")
-    agent.register_reply(agent1, lambda recipient, messages, sender, config: (True, "hello"))
+    agent = ConversableAgent(
+        "a0", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER"
+    )
+    agent1 = ConversableAgent(
+        "a1", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER"
+    )
+    agent.register_reply(
+        agent1, lambda recipient, messages, sender, config: (True, "hello")
+    )
     agent1.initiate_chat(agent, message="hi")
     assert agent1.last_message(agent)["content"] == "hello"
-    agent.register_reply("a1", lambda recipient, messages, sender, config: (True, "hello a1"))
+    agent.register_reply(
+        "a1", lambda recipient, messages, sender, config: (True, "hello a1")
+    )
     agent1.initiate_chat(agent, message="hi")
     assert agent1.last_message(agent)["content"] == "hello a1"
     agent.register_reply(
-        ConversableAgent, lambda recipient, messages, sender, config: (True, "hello conversable agent")
+        ConversableAgent,
+        lambda recipient, messages, sender, config: (True, "hello conversable agent"),
     )
     agent1.initiate_chat(agent, message="hi")
     assert agent1.last_message(agent)["content"] == "hello conversable agent"
     agent.register_reply(
-        lambda sender: sender.name.startswith("a"), lambda recipient, messages, sender, config: (True, "hello a")
+        lambda sender: sender.name.startswith("a"),
+        lambda recipient, messages, sender, config: (True, "hello a"),
     )
     agent1.initiate_chat(agent, message="hi")
     assert agent1.last_message(agent)["content"] == "hello a"
     agent.register_reply(
-        lambda sender: sender.name.startswith("b"), lambda recipient, messages, sender, config: (True, "hello b")
+        lambda sender: sender.name.startswith("b"),
+        lambda recipient, messages, sender, config: (True, "hello b"),
     )
     agent1.initiate_chat(agent, message="hi")
     assert agent1.last_message(agent)["content"] == "hello a"
     agent.register_reply(
-        ["agent2", agent1], lambda recipient, messages, sender, config: (True, "hello agent2 or agent1")
+        ["agent2", agent1],
+        lambda recipient, messages, sender, config: (True, "hello agent2 or agent1"),
     )
     agent1.initiate_chat(agent, message="hi")
     assert agent1.last_message(agent)["content"] == "hello agent2 or agent1"
     agent.register_reply(
-        ["agent2", "agent3"], lambda recipient, messages, sender, config: (True, "hello agent2 or agent3")
+        ["agent2", "agent3"],
+        lambda recipient, messages, sender, config: (True, "hello agent2 or agent3"),
     )
     agent1.initiate_chat(agent, message="hi")
     assert agent1.last_message(agent)["content"] == "hello agent2 or agent1"
-    pytest.raises(ValueError, agent.register_reply, 1, lambda recipient, messages, sender, config: (True, "hi"))
+    pytest.raises(
+        ValueError,
+        agent.register_reply,
+        1,
+        lambda recipient, messages, sender, config: (True, "hi"),
+    )
     pytest.raises(ValueError, agent._match_trigger, 1, agent1)
 
 
 @pytest.mark.asyncio
 async def test_async_trigger():
-    agent = ConversableAgent("a0", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER")
-    agent1 = ConversableAgent("a1", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER")
+    agent = ConversableAgent(
+        "a0", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER"
+    )
+    agent1 = ConversableAgent(
+        "a1", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER"
+    )
 
     async def a_reply(recipient, messages, sender, config):
         print("hello from a_reply")
@@ -142,9 +163,15 @@ async def test_async_trigger():
 
 
 def test_async_trigger_in_sync_chat():
-    agent = ConversableAgent("a0", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER")
-    agent1 = ConversableAgent("a1", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER")
-    agent2 = ConversableAgent("a2", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER")
+    agent = ConversableAgent(
+        "a0", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER"
+    )
+    agent1 = ConversableAgent(
+        "a1", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER"
+    )
+    agent2 = ConversableAgent(
+        "a2", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER"
+    )
 
     reply_mock = unittest.mock.MagicMock()
 
@@ -159,7 +186,8 @@ def test_async_trigger_in_sync_chat():
         agent1.initiate_chat(agent, message="hi")
 
     assert (
-        e.value.args[0] == "Async reply functions can only be used with ConversableAgent.a_initiate_chat(). "
+        e.value.args[0]
+        == "Async reply functions can only be used with ConversableAgent.a_initiate_chat(). "
         "The following async reply functions are found: a_reply"
     )
 
@@ -169,8 +197,12 @@ def test_async_trigger_in_sync_chat():
 
 @pytest.mark.asyncio
 async def test_sync_trigger_in_async_chat():
-    agent = ConversableAgent("a0", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER")
-    agent1 = ConversableAgent("a1", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER")
+    agent = ConversableAgent(
+        "a0", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER"
+    )
+    agent1 = ConversableAgent(
+        "a1", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER"
+    )
 
     def a_reply(recipient, messages, sender, config):
         print("hello from a_reply")
@@ -182,8 +214,12 @@ async def test_sync_trigger_in_async_chat():
 
 
 def test_context():
-    agent = ConversableAgent("a0", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER")
-    agent1 = ConversableAgent("a1", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER")
+    agent = ConversableAgent(
+        "a0", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER"
+    )
+    agent1 = ConversableAgent(
+        "a1", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER"
+    )
     agent1.send(
         {
             "content": "hello {name}",
@@ -219,7 +255,11 @@ def test_context():
 
 def test_generate_code_execution_reply():
     agent = ConversableAgent(
-        "a0", max_consecutive_auto_reply=10, code_execution_config=False, llm_config=False, human_input_mode="NEVER"
+        "a0",
+        max_consecutive_auto_reply=10,
+        code_execution_config=False,
+        llm_config=False,
+        human_input_mode="NEVER",
     )
 
     dummy_messages = [
@@ -239,13 +279,21 @@ def test_generate_code_execution_reply():
     }
 
     # scenario 1: if code_execution_config is not provided, the code execution should return false, none
-    assert agent.generate_code_execution_reply(dummy_messages, config=False) == (False, None)
+    assert agent.generate_code_execution_reply(dummy_messages, config=False) == (
+        False,
+        None,
+    )
 
     # scenario 2: if code_execution_config is provided, but no code block is found, the code execution should return false, none
-    assert agent.generate_code_execution_reply(dummy_messages, config={}) == (False, None)
+    assert agent.generate_code_execution_reply(dummy_messages, config={}) == (
+        False,
+        None,
+    )
 
     # scenario 3: if code_execution_config is provided, and code block is found, but it's not within the range of last_n_messages, the code execution should return false, none
-    assert agent.generate_code_execution_reply([code_message] + dummy_messages, config={"last_n_messages": 1}) == (
+    assert agent.generate_code_execution_reply(
+        [code_message] + dummy_messages, config={"last_n_messages": 1}
+    ) == (
         False,
         None,
     )
@@ -282,7 +330,9 @@ def test_generate_code_execution_reply():
 
         # With an assistant message present
         agent._code_execution_config = {"last_n_messages": "auto", "use_docker": False}
-        assert agent.generate_code_execution_reply([assistant_message_for_auto] + dummy_messages_for_auto) == (
+        assert agent.generate_code_execution_reply(
+            [assistant_message_for_auto] + dummy_messages_for_auto
+        ) == (
             False,
             None,
         )
@@ -292,7 +342,9 @@ def test_generate_code_execution_reply():
     for i in range(4):
         # Without an assistant present
         agent._code_execution_config = {"last_n_messages": "auto", "use_docker": False}
-        assert agent.generate_code_execution_reply([code_message] + dummy_messages_for_auto) == (
+        assert agent.generate_code_execution_reply(
+            [code_message] + dummy_messages_for_auto
+        ) == (
             True,
             "exitcode: 0 (execution succeeded)\nCode output: \nhello world\n",
         )
@@ -325,11 +377,23 @@ def test_generate_code_execution_reply():
 
 
 def test_max_consecutive_auto_reply():
-    agent = ConversableAgent("a0", max_consecutive_auto_reply=2, llm_config=False, human_input_mode="NEVER")
-    agent1 = ConversableAgent("a1", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER")
-    assert agent.max_consecutive_auto_reply() == agent.max_consecutive_auto_reply(agent1) == 2
+    agent = ConversableAgent(
+        "a0", max_consecutive_auto_reply=2, llm_config=False, human_input_mode="NEVER"
+    )
+    agent1 = ConversableAgent(
+        "a1", max_consecutive_auto_reply=0, llm_config=False, human_input_mode="NEVER"
+    )
+    assert (
+        agent.max_consecutive_auto_reply()
+        == agent.max_consecutive_auto_reply(agent1)
+        == 2
+    )
     agent.update_max_consecutive_auto_reply(1)
-    assert agent.max_consecutive_auto_reply() == agent.max_consecutive_auto_reply(agent1) == 1
+    assert (
+        agent.max_consecutive_auto_reply()
+        == agent.max_consecutive_auto_reply(agent1)
+        == 1
+    )
 
     agent1.initiate_chat(agent, message="hello")
     assert agent._consecutive_auto_reply_counter[agent1] == 1
@@ -350,12 +414,19 @@ def test_max_consecutive_auto_reply():
 
     assert agent1.reply_at_receive[agent] == agent.reply_at_receive[agent1] is True
     agent1.stop_reply_at_receive(agent)
-    assert agent1.reply_at_receive[agent] is False and agent.reply_at_receive[agent1] is True
+    assert (
+        agent1.reply_at_receive[agent] is False
+        and agent.reply_at_receive[agent1] is True
+    )
 
 
 def test_conversable_agent():
-    dummy_agent_1 = ConversableAgent(name="dummy_agent_1", llm_config=False, human_input_mode="ALWAYS")
-    dummy_agent_2 = ConversableAgent(name="dummy_agent_2", llm_config=False, human_input_mode="TERMINATE")
+    dummy_agent_1 = ConversableAgent(
+        name="dummy_agent_1", llm_config=False, human_input_mode="ALWAYS"
+    )
+    dummy_agent_2 = ConversableAgent(
+        name="dummy_agent_2", llm_config=False, human_input_mode="TERMINATE"
+    )
 
     # monkeypatch.setattr(sys, "stdin", StringIO("exit"))
     dummy_agent_1.receive("hello", dummy_agent_2)  # receive a str
@@ -401,7 +472,9 @@ def test_conversable_agent():
     dummy_agent_1.update_system_message("new system message")
     assert dummy_agent_1.system_message == "new system message"
 
-    dummy_agent_3 = ConversableAgent(name="dummy_agent_3", llm_config=False, human_input_mode="TERMINATE")
+    dummy_agent_3 = ConversableAgent(
+        name="dummy_agent_3", llm_config=False, human_input_mode="TERMINATE"
+    )
     with pytest.raises(KeyError):
         dummy_agent_1.last_message(dummy_agent_3)
 
@@ -415,7 +488,9 @@ def test_conversable_agent():
         llm_config=False,
         human_input_mode="TERMINATE",
     )
-    assert dummy_agent_4.description == "The fourth dummy agent used for testing."  # Same as system message
+    assert (
+        dummy_agent_4.description == "The fourth dummy agent used for testing."
+    )  # Same as system message
 
     dummy_agent_5 = ConversableAgent(
         name="dummy_agent_5",
@@ -424,7 +499,9 @@ def test_conversable_agent():
         llm_config=False,
         human_input_mode="TERMINATE",
     )
-    assert dummy_agent_5.description == "The fifth dummy agent used for testing."  # Same as system message
+    assert (
+        dummy_agent_5.description == "The fifth dummy agent used for testing."
+    )  # Same as system message
 
 
 def test_generate_reply():
@@ -433,9 +510,20 @@ def test_generate_reply():
         return num_to_be_added + given_num
 
     dummy_agent_2 = ConversableAgent(
-        name="user_proxy", llm_config=False, human_input_mode="TERMINATE", function_map={"add_num": add_num}
+        name="user_proxy",
+        llm_config=False,
+        human_input_mode="TERMINATE",
+        function_map={"add_num": add_num},
     )
-    messages = [{"function_call": {"name": "add_num", "arguments": '{ "num_to_be_added": 5 }'}, "role": "assistant"}]
+    messages = [
+        {
+            "function_call": {
+                "name": "add_num",
+                "arguments": '{ "num_to_be_added": 5 }',
+            },
+            "role": "assistant",
+        }
+    ]
 
     # when sender is None, messages is provided
     assert (
@@ -443,10 +531,13 @@ def test_generate_reply():
     ), "generate_reply not working when sender is None"
 
     # when sender is provided, messages is None
-    dummy_agent_1 = ConversableAgent(name="dummy_agent_1", llm_config=False, human_input_mode="ALWAYS")
+    dummy_agent_1 = ConversableAgent(
+        name="dummy_agent_1", llm_config=False, human_input_mode="ALWAYS"
+    )
     dummy_agent_2._oai_messages[dummy_agent_1] = messages
     assert (
-        dummy_agent_2.generate_reply(messages=None, sender=dummy_agent_1)["content"] == "15"
+        dummy_agent_2.generate_reply(messages=None, sender=dummy_agent_1)["content"]
+        == "15"
     ), "generate_reply not working when messages is None"
 
 
@@ -531,11 +622,15 @@ def test__wrap_function_sync():
 
     class Currency(BaseModel):
         currency: Annotated[CurrencySymbol, Field(..., description="Currency code")]
-        amount: Annotated[float, Field(100.0, description="Amount of money in the currency")]
+        amount: Annotated[
+            float, Field(100.0, description="Amount of money in the currency")
+        ]
 
     Currency(currency="USD", amount=100.0)
 
-    def exchange_rate(base_currency: CurrencySymbol, quote_currency: CurrencySymbol) -> float:
+    def exchange_rate(
+        base_currency: CurrencySymbol, quote_currency: CurrencySymbol
+    ) -> float:
         if base_currency == quote_currency:
             return 1.0
         elif base_currency == "USD" and quote_currency == "EUR":
@@ -556,7 +651,9 @@ def test__wrap_function_sync():
         return Currency(amount=quote_amount, currency=quote_currency)
 
     assert (
-        currency_calculator(base={"currency": "USD", "amount": 110.11}, quote_currency="EUR")
+        currency_calculator(
+            base={"currency": "USD", "amount": 110.11}, quote_currency="EUR"
+        )
         == '{"currency":"EUR","amount":100.1}'
     )
 
@@ -569,11 +666,15 @@ async def test__wrap_function_async():
 
     class Currency(BaseModel):
         currency: Annotated[CurrencySymbol, Field(..., description="Currency code")]
-        amount: Annotated[float, Field(100.0, description="Amount of money in the currency")]
+        amount: Annotated[
+            float, Field(100.0, description="Amount of money in the currency")
+        ]
 
     Currency(currency="USD", amount=100.0)
 
-    def exchange_rate(base_currency: CurrencySymbol, quote_currency: CurrencySymbol) -> float:
+    def exchange_rate(
+        base_currency: CurrencySymbol, quote_currency: CurrencySymbol
+    ) -> float:
         if base_currency == quote_currency:
             return 1.0
         elif base_currency == "USD" and quote_currency == "EUR":
@@ -594,7 +695,9 @@ async def test__wrap_function_async():
         return Currency(amount=quote_amount, currency=quote_currency)
 
     assert (
-        await currency_calculator(base={"currency": "USD", "amount": 110.11}, quote_currency="EUR")
+        await currency_calculator(
+            base={"currency": "USD", "amount": 110.11}, quote_currency="EUR"
+        )
         == '{"currency":"EUR","amount":100.1}'
     )
 
@@ -614,7 +717,9 @@ def test_register_for_llm():
 
         @agent3.register_for_llm()
         @agent2.register_for_llm(name="python")
-        @agent1.register_for_llm(description="run cell in ipython and return the execution result.")
+        @agent1.register_for_llm(
+            description="run cell in ipython and return the execution result."
+        )
         def exec_python(cell: Annotated[str, "Valid Python cell to execute."]) -> str:
             pass
 
@@ -647,8 +752,12 @@ def test_register_for_llm():
 
         @agent3.register_for_llm()
         @agent2.register_for_llm()
-        @agent1.register_for_llm(name="sh", description="run a shell script and return the execution result.")
-        async def exec_sh(script: Annotated[str, "Valid shell script to execute."]) -> str:
+        @agent1.register_for_llm(
+            name="sh", description="run a shell script and return the execution result."
+        )
+        async def exec_sh(
+            script: Annotated[str, "Valid shell script to execute."]
+        ) -> str:
             pass
 
         expected1 = expected1 + [
@@ -688,7 +797,8 @@ def test_register_for_llm_api_style_function():
         @agent3.register_for_llm(api_style="function")
         @agent2.register_for_llm(name="python", api_style="function")
         @agent1.register_for_llm(
-            description="run cell in ipython and return the execution result.", api_style="function"
+            description="run cell in ipython and return the execution result.",
+            api_style="function",
         )
         def exec_python(cell: Annotated[str, "Valid Python cell to execute."]) -> str:
             pass
@@ -720,9 +830,13 @@ def test_register_for_llm_api_style_function():
         @agent3.register_for_llm(api_style="function")
         @agent2.register_for_llm(api_style="function")
         @agent1.register_for_llm(
-            name="sh", description="run a shell script and return the execution result.", api_style="function"
+            name="sh",
+            description="run a shell script and return the execution result.",
+            api_style="function",
         )
-        async def exec_sh(script: Annotated[str, "Valid shell script to execute."]) -> str:
+        async def exec_sh(
+            script: Annotated[str, "Valid shell script to execute."]
+        ) -> str:
             pass
 
         expected1 = expected1 + [
@@ -757,7 +871,9 @@ def test_register_for_llm_without_description():
         with pytest.raises(ValueError) as e:
 
             @agent.register_for_llm()
-            def exec_python(cell: Annotated[str, "Valid Python cell to execute."]) -> str:
+            def exec_python(
+                cell: Annotated[str, "Valid Python cell to execute."]
+            ) -> str:
                 pass
 
         assert e.value.args[0] == "Function description is required, none found."
@@ -772,11 +888,18 @@ def test_register_for_llm_without_LLM():
 
         with pytest.raises(RuntimeError) as e:
 
-            @agent.register_for_llm(description="run cell in ipython and return the execution result.")
-            def exec_python(cell: Annotated[str, "Valid Python cell to execute."]) -> str:
+            @agent.register_for_llm(
+                description="run cell in ipython and return the execution result."
+            )
+            def exec_python(
+                cell: Annotated[str, "Valid Python cell to execute."]
+            ) -> str:
                 pass
 
-        assert e.value.args[0] == "LLM config must be setup before registering a function for LLM."
+        assert (
+            e.value.args[0]
+            == "LLM config must be setup before registering a function for LLM."
+        )
 
 
 def test_register_for_execution():
@@ -788,7 +911,9 @@ def test_register_for_execution():
 
         @user_proxy_2.register_for_execution(name="python")
         @agent.register_for_execution()
-        @agent.register_for_llm(description="run cell in ipython and return the execution result.")
+        @agent.register_for_llm(
+            description="run cell in ipython and return the execution result."
+        )
         @user_proxy_1.register_for_execution()
         def exec_python(cell: Annotated[str, "Valid Python cell to execute."]):
             pass
@@ -801,7 +926,9 @@ def test_register_for_execution():
         assert get_origin(user_proxy_2.function_map) == expected_function_map_2
 
         @agent.register_for_execution()
-        @agent.register_for_llm(description="run a shell script and return the execution result.")
+        @agent.register_for_llm(
+            description="run a shell script and return the execution result."
+        )
         @user_proxy_1.register_for_execution(name="sh")
         async def exec_sh(script: Annotated[str, "Valid shell script to execute."]):
             pass
@@ -822,7 +949,14 @@ def test_function_registration_e2e_sync() -> None:
     config_list = autogen.config_list_from_json(
         OAI_CONFIG_LIST,
         filter_dict={
-            "model": ["gpt-4", "gpt-4-0314", "gpt4", "gpt-4-32k", "gpt-4-32k-0314", "gpt-4-32k-v0314"],
+            "model": [
+                "gpt-4",
+                "gpt-4-0314",
+                "gpt4",
+                "gpt-4-32k",
+                "gpt-4-32k-0314",
+                "gpt-4-32k-v0314",
+            ],
         },
         file_location=KEY_LOC,
     )
@@ -841,7 +975,8 @@ def test_function_registration_e2e_sync() -> None:
     user_proxy = autogen.UserProxyAgent(
         name="user_proxy",
         system_message="A proxy for the user for executing code.",
-        is_termination_msg=lambda x: x.get("content", "") and x.get("content", "").rstrip().endswith("TERMINATE"),
+        is_termination_msg=lambda x: x.get("content", "")
+        and x.get("content", "").rstrip().endswith("TERMINATE"),
         human_input_mode="NEVER",
         max_consecutive_auto_reply=10,
         code_execution_config={"work_dir": "coding"},
@@ -867,7 +1002,9 @@ def test_function_registration_e2e_sync() -> None:
     # An example sync function
     @user_proxy.register_for_execution()
     @coder.register_for_llm(description="create a stopwatch for N seconds")
-    def stopwatch(num_seconds: Annotated[str, "Number of seconds in the stopwatch."]) -> str:
+    def stopwatch(
+        num_seconds: Annotated[str, "Number of seconds in the stopwatch."]
+    ) -> str:
         print("stopwatch is running")
         # assert False, "stopwatch's alive!"
         for i in range(int(num_seconds)):
@@ -900,7 +1037,14 @@ async def test_function_registration_e2e_async() -> None:
     config_list = autogen.config_list_from_json(
         OAI_CONFIG_LIST,
         filter_dict={
-            "model": ["gpt-4", "gpt-4-0314", "gpt4", "gpt-4-32k", "gpt-4-32k-0314", "gpt-4-32k-v0314"],
+            "model": [
+                "gpt-4",
+                "gpt-4-0314",
+                "gpt4",
+                "gpt-4-32k",
+                "gpt-4-32k-0314",
+                "gpt-4-32k-v0314",
+            ],
         },
         file_location=KEY_LOC,
     )
@@ -919,7 +1063,8 @@ async def test_function_registration_e2e_async() -> None:
     user_proxy = autogen.UserProxyAgent(
         name="user_proxy",
         system_message="A proxy for the user for executing code.",
-        is_termination_msg=lambda x: x.get("content", "") and x.get("content", "").rstrip().endswith("TERMINATE"),
+        is_termination_msg=lambda x: x.get("content", "")
+        and x.get("content", "").rstrip().endswith("TERMINATE"),
         human_input_mode="NEVER",
         max_consecutive_auto_reply=10,
         code_execution_config={"work_dir": "coding"},
@@ -932,7 +1077,9 @@ async def test_function_registration_e2e_async() -> None:
     # An example async function
     @user_proxy.register_for_execution()
     @coder.register_for_llm(description="create a timer for N seconds")
-    async def timer(num_seconds: Annotated[str, "Number of seconds in the timer."]) -> str:
+    async def timer(
+        num_seconds: Annotated[str, "Number of seconds in the timer."]
+    ) -> str:
         print("timer is running")
         for i in range(int(num_seconds)):
             print(".", end="")
@@ -945,7 +1092,9 @@ async def test_function_registration_e2e_async() -> None:
     # An example sync function
     @user_proxy.register_for_execution()
     @coder.register_for_llm(description="create a stopwatch for N seconds")
-    def stopwatch(num_seconds: Annotated[str, "Number of seconds in the stopwatch."]) -> str:
+    def stopwatch(
+        num_seconds: Annotated[str, "Number of seconds in the stopwatch."]
+    ) -> str:
         print("stopwatch is running")
         # assert False, "stopwatch's alive!"
         for i in range(int(num_seconds)):
@@ -976,9 +1125,16 @@ async def test_function_registration_e2e_async() -> None:
 def test_no_llm_config():
     # We expect a TypeError when the model isn't specified
     with pytest.raises(TypeError, match=r".*Missing required arguments.*"):
-        agent1 = ConversableAgent(name="agent1", llm_config=False, human_input_mode="NEVER", default_auto_reply="")
+        agent1 = ConversableAgent(
+            name="agent1",
+            llm_config=False,
+            human_input_mode="NEVER",
+            default_auto_reply="",
+        )
         agent2 = ConversableAgent(
-            name="agent2", llm_config={"api_key": "Intentionally left blank."}, human_input_mode="NEVER"
+            name="agent2",
+            llm_config={"api_key": "Intentionally left blank."},
+            human_input_mode="NEVER",
         )
         agent1.initiate_chat(agent2, message="hi")
 

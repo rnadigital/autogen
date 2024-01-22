@@ -9,7 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from conftest import skip_openai  # noqa: E402
 
 try:
-    from openai import OpenAI
+    pass
 except ImportError:
     skip = True
 else:
@@ -24,15 +24,25 @@ def test_get_human_input():
     assistant = autogen.AssistantAgent(
         name="assistant",
         max_consecutive_auto_reply=2,
-        llm_config={"timeout": 600, "cache_seed": 41, "config_list": config_list, "temperature": 0},
+        llm_config={
+            "timeout": 600,
+            "cache_seed": 41,
+            "config_list": config_list,
+            "temperature": 0,
+        },
     )
 
-    user_proxy = autogen.UserProxyAgent(name="user", human_input_mode="ALWAYS", code_execution_config=False)
+    user_proxy = autogen.UserProxyAgent(
+        name="user", human_input_mode="ALWAYS", code_execution_config=False
+    )
 
     # Use MagicMock to create a mock get_human_input function
     user_proxy.get_human_input = MagicMock(return_value="This is a test")
 
-    user_proxy.register_reply([autogen.Agent, None], autogen.ConversableAgent.a_check_termination_and_human_reply)
+    user_proxy.register_reply(
+        [autogen.Agent, None],
+        autogen.ConversableAgent.a_check_termination_and_human_reply,
+    )
 
     user_proxy.initiate_chat(assistant, clear_history=True, message="Hello.")
     # Test without supplying messages parameter

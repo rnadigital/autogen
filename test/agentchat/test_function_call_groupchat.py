@@ -6,7 +6,7 @@ import os
 from test_assistant_agent import KEY_LOC, OAI_CONFIG_LIST
 
 try:
-    from openai import OpenAI
+    pass
 except ImportError:
     skip = True
 else:
@@ -49,7 +49,14 @@ async def test_function_call_groupchat(key, value, sync):
     config_list_gpt4 = autogen.config_list_from_json(
         OAI_CONFIG_LIST,
         filter_dict={
-            "model": ["gpt-4", "gpt-4-0314", "gpt4", "gpt-4-32k", "gpt-4-32k-0314", "gpt-4-32k-v0314"],
+            "model": [
+                "gpt-4",
+                "gpt-4-0314",
+                "gpt4",
+                "gpt-4-32k",
+                "gpt-4-32k-0314",
+                "gpt-4-32k-v0314",
+            ],
         },
         file_location=KEY_LOC,
     )
@@ -82,7 +89,10 @@ async def test_function_call_groupchat(key, value, sync):
         llm_config=llm_config_no_function,
     )
     groupchat = autogen.GroupChat(
-        agents=[player, user_proxy, observer], messages=[], max_round=7, speaker_selection_method="round_robin"
+        agents=[player, user_proxy, observer],
+        messages=[],
+        max_round=7,
+        speaker_selection_method="round_robin",
     )
 
     # pass in llm_config with functions
@@ -92,13 +102,17 @@ async def test_function_call_groupchat(key, value, sync):
     ):
         manager = autogen.GroupChatManager(groupchat=groupchat, llm_config=llm_config)
 
-    manager = autogen.GroupChatManager(groupchat=groupchat, llm_config=llm_config_no_function)
+    manager = autogen.GroupChatManager(
+        groupchat=groupchat, llm_config=llm_config_no_function
+    )
 
     if sync:
         observer.initiate_chat(manager, message="Let's start the game!")
     else:
         await observer.a_initiate_chat(manager, message="Let's start the game!")
-    assert func.call_count >= 1, "The function get_random_number should be called at least once."
+    assert (
+        func.call_count >= 1
+    ), "The function get_random_number should be called at least once."
 
 
 def test_no_function_map():

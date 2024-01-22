@@ -4,13 +4,21 @@ from pydantic import BaseModel
 from pydantic.version import VERSION as PYDANTIC_VERSION
 from typing_extensions import get_origin
 
-__all__ = ("JsonSchemaValue", "model_dump", "model_dump_json", "type2schema", "evaluate_forwardref")
+__all__ = (
+    "JsonSchemaValue",
+    "model_dump",
+    "model_dump_json",
+    "type2schema",
+    "evaluate_forwardref",
+)
 
 PYDANTIC_V1 = PYDANTIC_VERSION.startswith("1.")
 
 if not PYDANTIC_V1:
     from pydantic import TypeAdapter
-    from pydantic._internal._typing_extra import eval_type_lenient as evaluate_forwardref
+    from pydantic._internal._typing_extra import (
+        eval_type_lenient as evaluate_forwardref,
+    )
     from pydantic.json_schema import JsonSchemaValue
 
     def type2schema(t: Optional[Type]) -> JsonSchemaValue:

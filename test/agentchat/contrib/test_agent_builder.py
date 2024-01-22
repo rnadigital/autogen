@@ -12,7 +12,7 @@ from test_assistant_agent import OAI_CONFIG_LIST, KEY_LOC  # noqa: E402
 here = os.path.abspath(os.path.dirname(__file__))
 
 try:
-    import openai
+    pass
 except ImportError:
     skip = True
 else:
@@ -38,7 +38,10 @@ def _config_check(config):
 )
 def test_build():
     builder = AgentBuilder(
-        config_file_or_env=OAI_CONFIG_LIST, config_file_location=KEY_LOC, builder_model="gpt-4", agent_model="gpt-4"
+        config_file_or_env=OAI_CONFIG_LIST,
+        config_file_location=KEY_LOC,
+        builder_model="gpt-4",
+        agent_model="gpt-4",
     )
     building_task = (
         "Find a paper on arxiv by programming, and analyze its application in some domain. "
@@ -71,7 +74,10 @@ def test_build():
 )
 def test_build_from_library():
     builder = AgentBuilder(
-        config_file_or_env=OAI_CONFIG_LIST, config_file_location=KEY_LOC, builder_model="gpt-4", agent_model="gpt-4"
+        config_file_or_env=OAI_CONFIG_LIST,
+        config_file_location=KEY_LOC,
+        builder_model="gpt-4",
+        agent_model="gpt-4",
     )
     building_task = (
         "Find a paper on arxiv by programming, and analyze its application in some domain. "
@@ -129,7 +135,10 @@ def test_build_from_library():
 )
 def test_save():
     builder = AgentBuilder(
-        config_file_or_env=OAI_CONFIG_LIST, config_file_location=KEY_LOC, builder_model="gpt-4", agent_model="gpt-4"
+        config_file_or_env=OAI_CONFIG_LIST,
+        config_file_location=KEY_LOC,
+        builder_model="gpt-4",
+        agent_model="gpt-4",
     )
     building_task = (
         "Find a paper on arxiv by programming, and analyze its application in some domain. "
@@ -163,7 +172,10 @@ def test_save():
 )
 def test_load():
     builder = AgentBuilder(
-        config_file_or_env=OAI_CONFIG_LIST, config_file_location=KEY_LOC, builder_model="gpt-4", agent_model="gpt-4"
+        config_file_or_env=OAI_CONFIG_LIST,
+        config_file_location=KEY_LOC,
+        builder_model="gpt-4",
+        agent_model="gpt-4",
     )
 
     config_save_path = f"{here}/example_test_agent_builder_config.json"
@@ -189,7 +201,10 @@ def test_load():
 )
 def test_clear_agent():
     builder = AgentBuilder(
-        config_file_or_env=OAI_CONFIG_LIST, config_file_location=KEY_LOC, builder_model="gpt-4", agent_model="gpt-4"
+        config_file_or_env=OAI_CONFIG_LIST,
+        config_file_location=KEY_LOC,
+        builder_model="gpt-4",
+        agent_model="gpt-4",
     )
 
     config_save_path = f"{here}/example_test_agent_builder_config.json"

@@ -9,7 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from conftest import skip_openai  # noqa: E402
 
 try:
-    from openai import OpenAI
+    pass
 except ImportError:
     skip = True
 else:
@@ -89,13 +89,17 @@ async def test_async_groupchat():
         default_auto_reply=None,
     )
 
-    groupchat = autogen.GroupChat(agents=[user_proxy, assistant], messages=[], max_round=12)
+    groupchat = autogen.GroupChat(
+        agents=[user_proxy, assistant], messages=[], max_round=12
+    )
     manager = autogen.GroupChatManager(
         groupchat=groupchat,
         llm_config=llm_config,
         is_termination_msg=lambda x: "TERMINATE" in x.get("content", ""),
     )
-    await user_proxy.a_initiate_chat(manager, message="""Have a short conversation with the assistant.""")
+    await user_proxy.a_initiate_chat(
+        manager, message="""Have a short conversation with the assistant."""
+    )
     assert len(user_proxy.chat_messages) > 0
 
 
@@ -151,7 +155,9 @@ async def test_stream():
                 )
             return False, None
 
-    user_proxy.register_reply(autogen.AssistantAgent, add_data_reply, position=2, config={"news_stream": data})
+    user_proxy.register_reply(
+        autogen.AssistantAgent, add_data_reply, position=2, config={"news_stream": data}
+    )
 
     await user_proxy.a_initiate_chat(
         assistant,

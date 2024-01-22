@@ -1,4 +1,3 @@
-import asyncio
 import inspect
 import unittest.mock
 from typing import Dict, List, Literal, Optional, Tuple
@@ -25,7 +24,13 @@ from autogen.function_utils import (
 )
 
 
-def f(a: Annotated[str, "Parameter a"], b: int = 2, c: Annotated[float, "Parameter c"] = 0.1, *, d):
+def f(
+    a: Annotated[str, "Parameter a"],
+    b: int = 2,
+    c: Annotated[float, "Parameter c"] = 0.1,
+    *,
+    d,
+):
     pass
 
 
@@ -66,14 +71,23 @@ def test_get_typed_return_annotation() -> None:
 
 
 def test_get_parameter_json_schema() -> None:
-    assert get_parameter_json_schema("c", str, {}) == {"type": "string", "description": "c"}
-    assert get_parameter_json_schema("c", str, {"c": "ccc"}) == {"type": "string", "description": "c", "default": "ccc"}
+    assert get_parameter_json_schema("c", str, {}) == {
+        "type": "string",
+        "description": "c",
+    }
+    assert get_parameter_json_schema("c", str, {"c": "ccc"}) == {
+        "type": "string",
+        "description": "c",
+        "default": "ccc",
+    }
 
     assert get_parameter_json_schema("a", Annotated[str, "parameter a"], {}) == {
         "type": "string",
         "description": "parameter a",
     }
-    assert get_parameter_json_schema("a", Annotated[str, "parameter a"], {"a": "3.14"}) == {
+    assert get_parameter_json_schema(
+        "a", Annotated[str, "parameter a"], {"a": "3.14"}
+    ) == {
         "type": "string",
         "description": "parameter a",
         "default": "3.14",
@@ -85,7 +99,10 @@ def test_get_parameter_json_schema() -> None:
 
     expected = {
         "description": "b",
-        "properties": {"b": {"title": "B", "type": "number"}, "c": {"title": "C", "type": "string"}},
+        "properties": {
+            "b": {"title": "B", "type": "number"},
+            "c": {"title": "C", "type": "string"},
+        },
         "required": ["b", "c"],
         "title": "B",
         "type": "object",
@@ -107,10 +124,15 @@ def test_get_default_values() -> None:
 
 
 def test_get_param_annotations() -> None:
-    def f(a: Annotated[str, "Parameter a"], b=1, c: Annotated[float, "Parameter c"] = 1.0):
+    def f(
+        a: Annotated[str, "Parameter a"], b=1, c: Annotated[float, "Parameter c"] = 1.0
+    ):
         pass
 
-    expected = {"a": Annotated[str, "Parameter a"], "c": Annotated[float, "Parameter c"]}
+    expected = {
+        "a": Annotated[str, "Parameter a"],
+        "c": Annotated[float, "Parameter c"],
+    }
 
     typed_signature = get_typed_signature(f)
     param_annotations = get_param_annotations(typed_signature)
@@ -122,27 +144,35 @@ def test_get_missing_annotations() -> None:
     def _f1(a: str, b=2):
         pass
 
-    missing, unannotated_with_default = get_missing_annotations(get_typed_signature(_f1), ["a"])
+    missing, unannotated_with_default = get_missing_annotations(
+        get_typed_signature(_f1), ["a"]
+    )
     assert missing == set()
     assert unannotated_with_default == {"b"}
 
     def _f2(a: str, b) -> str:
         "ok"
 
-    missing, unannotated_with_default = get_missing_annotations(get_typed_signature(_f2), ["a", "b"])
+    missing, unannotated_with_default = get_missing_annotations(
+        get_typed_signature(_f2), ["a", "b"]
+    )
     assert missing == {"b"}
     assert unannotated_with_default == set()
 
     def _f3() -> None:
         pass
 
-    missing, unannotated_with_default = get_missing_annotations(get_typed_signature(_f3), [])
+    missing, unannotated_with_default = get_missing_annotations(
+        get_typed_signature(_f3), []
+    )
     assert missing == set()
     assert unannotated_with_default == set()
 
 
 def test_get_parameters() -> None:
-    def f(a: Annotated[str, "Parameter a"], b=1, c: Annotated[float, "Parameter c"] = 1.0):
+    def f(
+        a: Annotated[str, "Parameter a"], b=1, c: Annotated[float, "Parameter c"] = 1.0
+    ):
         pass
 
     typed_signature = get_typed_signature(f)
@@ -173,17 +203,25 @@ def test_get_function_schema_no_return_type() -> None:
         + "optional, the function should return either a string, a subclass of 'pydantic.BaseModel'."
     )
 
-    with unittest.mock.patch("autogen.function_utils.logger.warning") as mock_logger_warning:
+    with unittest.mock.patch(
+        "autogen.function_utils.logger.warning"
+    ) as mock_logger_warning:
         get_function_schema(f, description="function g")
 
         mock_logger_warning.assert_called_once_with(expected)
 
 
 def test_get_function_schema_unannotated_with_default() -> None:
-    with unittest.mock.patch("autogen.function_utils.logger.warning") as mock_logger_warning:
+    with unittest.mock.patch(
+        "autogen.function_utils.logger.warning"
+    ) as mock_logger_warning:
 
         def f(
-            a: Annotated[str, "Parameter a"], b=2, c: Annotated[float, "Parameter c"] = 0.1, d="whatever", e=None
+            a: Annotated[str, "Parameter a"],
+            b=2,
+            c: Annotated[float, "Parameter c"] = 0.1,
+            d="whatever",
+            e=None,
         ) -> str:
             return "ok"
 
@@ -195,7 +233,9 @@ def test_get_function_schema_unannotated_with_default() -> None:
 
 
 def test_get_function_schema_missing() -> None:
-    def f(a: Annotated[str, "Parameter a"], b, c: Annotated[float, "Parameter c"] = 0.1) -> float:
+    def f(
+        a: Annotated[str, "Parameter a"], b, c: Annotated[float, "Parameter c"] = 0.1
+    ) -> float:
         pass
 
     expected = (
@@ -220,7 +260,11 @@ def test_get_function_schema() -> None:
                 "properties": {
                     "a": {"type": "string", "description": "Parameter a"},
                     "b": {"type": "integer", "description": "b", "default": 2},
-                    "c": {"type": "number", "description": "Parameter c", "default": 0.1},
+                    "c": {
+                        "type": "number",
+                        "description": "Parameter c",
+                        "default": 0.1,
+                    },
                     "d": {
                         "additionalProperties": {
                             "maxItems": 2,
@@ -251,14 +295,21 @@ def test_get_function_schema() -> None:
                 "properties": {
                     "a": {"type": "string", "description": "Parameter a"},
                     "b": {"type": "integer", "description": "b", "default": 2},
-                    "c": {"type": "number", "description": "Parameter c", "default": 0.1},
+                    "c": {
+                        "type": "number",
+                        "description": "Parameter c",
+                        "default": 0.1,
+                    },
                     "d": {
                         "type": "object",
                         "additionalProperties": {
                             "type": "array",
                             "minItems": 2,
                             "maxItems": 2,
-                            "items": [{"type": "integer"}, {"type": "array", "items": {"type": "number"}}],
+                            "items": [
+                                {"type": "integer"},
+                                {"type": "array", "items": {"type": "number"}},
+                            ],
                         },
                         "description": "d",
                     },
@@ -287,13 +338,17 @@ CurrencySymbol = Literal["USD", "EUR"]
 
 class Currency(BaseModel):
     currency: Annotated[CurrencySymbol, Field(..., description="Currency code")]
-    amount: Annotated[float, Field(100.0, description="Amount of money in the currency")]
+    amount: Annotated[
+        float, Field(100.0, description="Amount of money in the currency")
+    ]
 
 
 def test_get_function_schema_pydantic() -> None:
     def currency_calculator(
         base: Annotated[Currency, "Base currency: amount and currency symbol"],
-        quote_currency: Annotated[CurrencySymbol, "Quote currency symbol (default: 'EUR')"] = "EUR",
+        quote_currency: Annotated[
+            CurrencySymbol, "Quote currency symbol (default: 'EUR')"
+        ] = "EUR",
     ) -> Currency:
         pass
 
@@ -338,7 +393,9 @@ def test_get_function_schema_pydantic() -> None:
     }
 
     actual = get_function_schema(
-        currency_calculator, description="Currency exchange calculator.", name="currency_calculator"
+        currency_calculator,
+        description="Currency exchange calculator.",
+        name="currency_calculator",
     )
 
     assert actual == expected, actual
@@ -346,11 +403,13 @@ def test_get_function_schema_pydantic() -> None:
 
 def test_get_load_param_if_needed_function() -> None:
     assert get_load_param_if_needed_function(CurrencySymbol) is None
-    assert get_load_param_if_needed_function(Currency)({"currency": "USD", "amount": 123.45}, Currency) == Currency(
-        currency="USD", amount=123.45
-    )
+    assert get_load_param_if_needed_function(Currency)(
+        {"currency": "USD", "amount": 123.45}, Currency
+    ) == Currency(currency="USD", amount=123.45)
 
-    f = get_load_param_if_needed_function(Annotated[Currency, "amount and a symbol of a currency"])
+    f = get_load_param_if_needed_function(
+        Annotated[Currency, "amount and a symbol of a currency"]
+    )
     actual = f({"currency": "USD", "amount": 123.45}, Currency)
     expected = Currency(currency="USD", amount=123.45)
     assert actual == expected, actual

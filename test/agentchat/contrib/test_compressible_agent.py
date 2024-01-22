@@ -13,7 +13,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from test_assistant_agent import OAI_CONFIG_LIST, KEY_LOC  # noqa: E402
 
 try:
-    import openai
+    pass
 except ImportError:
     skip = True
 else:
@@ -24,7 +24,12 @@ if not skip:
         OAI_CONFIG_LIST,
         file_location=KEY_LOC,
         filter_dict={
-            "model": ["gpt-3.5-turbo", "gpt-35-turbo", "gpt-3.5-turbo-16k", "gpt-35-turbo-16k"],
+            "model": [
+                "gpt-3.5-turbo",
+                "gpt-35-turbo",
+                "gpt-3.5-turbo-16k",
+                "gpt-35-turbo-16k",
+            ],
         },
     )
 
@@ -161,7 +166,9 @@ def test_compress_message():
         },
     )
 
-    assert assistant.compress_messages([{"content": "hello world", "role": "user"}]) == (
+    assert assistant.compress_messages(
+        [{"content": "hello world", "role": "user"}]
+    ) == (
         False,
         None,
     ), "Single message should not be compressed"
@@ -170,7 +177,10 @@ def test_compress_message():
         [
             {"content": "Hello!", "role": "user"},
             {"content": "How can I help you today?", "role": "assistant"},
-            {"content": "Can you tell me a joke about programming?", "role": "assistant"},
+            {
+                "content": "Can you tell me a joke about programming?",
+                "role": "assistant",
+            },
         ]
     )
     assert is_success, "Compression failed."
@@ -194,7 +204,8 @@ def test_mode_terminate():
 
     user_proxy = autogen.UserProxyAgent(
         name="user_proxy",
-        is_termination_msg=lambda x: x.get("content", "") and x.get("content", "").rstrip().endswith("TERMINATE"),
+        is_termination_msg=lambda x: x.get("content", "")
+        and x.get("content", "").rstrip().endswith("TERMINATE"),
         human_input_mode="NEVER",
         max_consecutive_auto_reply=5,
         code_execution_config={"work_dir": "coding"},
@@ -218,7 +229,9 @@ def test_mode_terminate():
 def test_new_compressible_agent_description():
     assistant = CompressibleAgent(name="assistant", description="this is a description")
 
-    assert assistant.description == "this is a description", "description is not set correctly"
+    assert (
+        assistant.description == "this is a description"
+    ), "description is not set correctly"
 
 
 if __name__ == "__main__":

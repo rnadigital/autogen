@@ -2,10 +2,13 @@ from typing import Callable, Dict, Optional, Union, Tuple, List, Any
 from autogen import OpenAIWrapper
 from autogen import Agent, ConversableAgent
 import copy
-import asyncio
 import logging
 import inspect
-from autogen.token_count_utils import count_token, get_max_token_limit, num_tokens_from_functions
+from autogen.token_count_utils import (
+    count_token,
+    get_max_token_limit,
+    num_tokens_from_functions,
+)
 
 try:
     from termcolor import colored
@@ -130,10 +133,18 @@ Reply "TERMINATE" in the end when everything is done.
 
         self._reply_func_list.clear()
         self.register_reply([Agent, None], ConversableAgent.generate_oai_reply)
-        self.register_reply([Agent], CompressibleAgent.on_oai_token_limit)  # check token limit
-        self.register_reply([Agent, None], ConversableAgent.generate_code_execution_reply)
-        self.register_reply([Agent, None], ConversableAgent.generate_function_call_reply)
-        self.register_reply([Agent, None], ConversableAgent.check_termination_and_human_reply)
+        self.register_reply(
+            [Agent], CompressibleAgent.on_oai_token_limit
+        )  # check token limit
+        self.register_reply(
+            [Agent, None], ConversableAgent.generate_code_execution_reply
+        )
+        self.register_reply(
+            [Agent, None], ConversableAgent.generate_function_call_reply
+        )
+        self.register_reply(
+            [Agent, None], ConversableAgent.check_termination_and_human_reply
+        )
 
     def _set_compress_config(self, compress_config: Optional[Dict] = False):
         if compress_config:
@@ -144,17 +155,25 @@ Reply "TERMINATE" in the end when everything is done.
 
             allowed_modes = ["COMPRESS", "TERMINATE", "CUSTOMIZED"]
             if compress_config.get("mode", "TERMINATE") not in allowed_modes:
-                raise ValueError(f"Invalid compression mode. Allowed values are: {', '.join(allowed_modes)}")
+                raise ValueError(
+                    f"Invalid compression mode. Allowed values are: {', '.join(allowed_modes)}"
+                )
 
             self.compress_config = self.DEFAULT_COMPRESS_CONFIG.copy()
             self.compress_config.update(compress_config)
 
-            if not isinstance(self.compress_config["leave_last_n"], int) or self.compress_config["leave_last_n"] < 0:
+            if (
+                not isinstance(self.compress_config["leave_last_n"], int)
+                or self.compress_config["leave_last_n"] < 0
+            ):
                 raise ValueError("leave_last_n must be a non-negative integer.")
 
             # convert trigger_count to int, default to 0.7
             trigger_count = self.compress_config["trigger_count"]
-            if not (isinstance(trigger_count, int) or isinstance(trigger_count, float)) or trigger_count <= 0:
+            if (
+                not (isinstance(trigger_count, int) or isinstance(trigger_count, float))
+                or trigger_count <= 0
+            ):
                 raise ValueError("trigger_count must be a positive number.")
             if isinstance(trigger_count, float) and 0 < trigger_count <= 1:
                 self.compress_config["trigger_count"] = int(
@@ -168,10 +187,20 @@ Reply "TERMINATE" in the end when everything is done.
                 )
                 self.compress_config = False
 
-            if self.compress_config["mode"] == "CUSTOMIZED" and self.compress_config["compress_function"] is None:
-                raise ValueError("compress_function must be provided when mode is CUSTOMIZED.")
-            if self.compress_config["mode"] != "CUSTOMIZED" and self.compress_config["compress_function"] is not None:
-                print("Warning: compress_function is provided but mode is not 'CUSTOMIZED'.")
+            if (
+                self.compress_config["mode"] == "CUSTOMIZED"
+                and self.compress_config["compress_function"] is None
+            ):
+                raise ValueError(
+                    "compress_function must be provided when mode is CUSTOMIZED."
+                )
+            if (
+                self.compress_config["mode"] != "CUSTOMIZED"
+                and self.compress_config["compress_function"] is not None
+            ):
+                print(
+                    "Warning: compress_function is provided but mode is not 'CUSTOMIZED'."
+                )
 
         else:
             self.compress_config = False
@@ -205,8 +234,17 @@ Reply "TERMINATE" in the end when everything is done.
             if inspect.iscoroutinefunction(reply_func):
                 continue
             if self._match_trigger(reply_func_tuple["trigger"], sender):
-                final, reply = reply_func(self, messages=messages, sender=sender, config=reply_func_tuple["config"])
-                if messages is not None and sender is not None and messages != self._oai_messages[sender]:
+                final, reply = reply_func(
+                    self,
+                    messages=messages,
+                    sender=sender,
+                    config=reply_func_tuple["config"],
+                )
+                if (
+                    messages is not None
+                    and sender is not None
+                    and messages != self._oai_messages[sender]
+                ):
                     messages = self._oai_messages[sender]
                 if final:
                     return reply
@@ -219,11 +257,17 @@ Reply "TERMINATE" in the end when everything is done.
 
         func_count = 0
         if "functions" in self.llm_config:
-            func_count = num_tokens_from_functions(self.llm_config["functions"], self.llm_config["model"])
+            func_count = num_tokens_from_functions(
+                self.llm_config["functions"], self.llm_config["model"]
+            )
 
-        return func_count + count_token(self._oai_system_message, self.llm_config["model"])
+        return func_count + count_token(
+            self._oai_system_message, self.llm_config["model"]
+        )
 
-    def _manage_history_on_token_limit(self, messages, token_used, max_token_allowed, model):
+    def _manage_history_on_token_limit(
+        self, messages, token_used, max_token_allowed, model
+    ):
         """Manage the message history with different modes when token limit is reached.
         Return:
             final (bool): whether to terminate the agent.
@@ -252,9 +296,13 @@ Reply "TERMINATE" in the end when everything is done.
         if self.compress_config["mode"] == "COMPRESS":
             _, compress_messages = self.compress_messages(copied_messages)
         elif self.compress_config["mode"] == "CUSTOMIZED":
-            _, compress_messages = self.compress_config["compress_function"](copied_messages)
+            _, compress_messages = self.compress_config["compress_function"](
+                copied_messages
+            )
         else:
-            raise ValueError(f"Unknown compression mode: {self.compress_config['mode']}")
+            raise ValueError(
+                f"Unknown compression mode: {self.compress_config['mode']}"
+            )
 
         if compress_messages is not None:
             for i in range(len(compress_messages)):
@@ -263,20 +311,30 @@ Reply "TERMINATE" in the end when everything is done.
 
     def _get_valid_oai_message(self, message):
         """Convert a message into a valid OpenAI ChatCompletion message."""
-        oai_message = {k: message[k] for k in ("content", "function_call", "name", "context", "role") if k in message}
+        oai_message = {
+            k: message[k]
+            for k in ("content", "function_call", "name", "context", "role")
+            if k in message
+        }
         if "content" not in oai_message:
             if "function_call" in oai_message:
-                oai_message["content"] = None  # if only function_call is provided, content will be set to None.
+                oai_message[
+                    "content"
+                ] = None  # if only function_call is provided, content will be set to None.
             else:
                 raise ValueError(
                     "Message can't be converted into a valid ChatCompletion message. Either content or function_call must be provided."
                 )
         if "function_call" in oai_message:
-            oai_message["role"] = "assistant"  # only messages with role 'assistant' can have a function call.
+            oai_message[
+                "role"
+            ] = "assistant"  # only messages with role 'assistant' can have a function call.
             oai_message["function_call"] = dict(oai_message["function_call"])
         return oai_message
 
-    def _print_compress_info(self, init_token_count, token_used, token_after_compression):
+    def _print_compress_info(
+        self, init_token_count, token_used, token_after_compression
+    ):
         to_print = "Token Count (including {} tokens from system msg and function descriptions). Before compression : {} | After: {}".format(
             init_token_count,
             token_used,
@@ -312,7 +370,9 @@ Reply "TERMINATE" in the end when everything is done.
         # update message history with compressed messages
         if compressed_messages is not None:
             self._print_compress_info(
-                init_token_count, token_used, count_token(compressed_messages, model) + init_token_count
+                init_token_count,
+                token_used,
+                count_token(compressed_messages, model) + init_token_count,
             )
             self._oai_messages[sender] = compressed_messages
             if self.compress_config["broadcast"]:
@@ -357,7 +417,13 @@ Reply "TERMINATE" in the end when everything is done.
 
         # 3. put all history into one, except the first one
         if self.compress_config["verbose"]:
-            print(colored("*" * 30 + "Start compressing the following content:" + "*" * 30, "magenta"), flush=True)
+            print(
+                colored(
+                    "*" * 30 + "Start compressing the following content:" + "*" * 30,
+                    "magenta",
+                ),
+                flush=True,
+            )
 
         compressed_prompt = "Below is the compressed content from the previous conversation, evaluate the process and continue if necessary:\n"
         chat_to_compress = "To be compressed:\n"
@@ -369,12 +435,18 @@ Reply "TERMINATE" in the end when everything is done.
 
             # If name exists in the message
             elif "name" in m:
-                chat_to_compress += f"##{m['name']}({m['role'].upper()})## {m['content']}\n"
+                chat_to_compress += (
+                    f"##{m['name']}({m['role'].upper()})## {m['content']}\n"
+                )
 
             # Handle case where content is not None and name is absent
-            elif m.get("content"):  # This condition will also handle None and empty string
+            elif m.get(
+                "content"
+            ):  # This condition will also handle None and empty string
                 if compressed_prompt in m["content"]:
-                    chat_to_compress += m["content"].replace(compressed_prompt, "") + "\n"
+                    chat_to_compress += (
+                        m["content"].replace(compressed_prompt, "") + "\n"
+                    )
                 else:
                     chat_to_compress += f"##{m['role'].upper()}## {m['content']}\n"
 
@@ -404,14 +476,19 @@ Rules:
         try:
             response = client.create(
                 context=None,
-                messages=[{"role": "system", "content": compress_sys_msg}] + chat_to_compress,
+                messages=[{"role": "system", "content": compress_sys_msg}]
+                + chat_to_compress,
             )
         except Exception as e:
-            print(colored(f"Failed to compress the content due to {e}", "red"), flush=True)
+            print(
+                colored(f"Failed to compress the content due to {e}", "red"), flush=True
+            )
             return False, None
 
         compressed_message = self.client.extract_text_or_completion_object(response)[0]
-        assert isinstance(compressed_message, str), f"compressed_message should be a string: {compressed_message}"
+        assert isinstance(
+            compressed_message, str
+        ), f"compressed_message should be a string: {compressed_message}"
         if self.compress_config["verbose"]:
             print(
                 colored("*" * 30 + "Content after compressing:" + "*" * 30, "magenta"),

@@ -1,17 +1,16 @@
 import json
 import logging
-import os
-import pdb
 import re
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 import replicate
 import requests
-from regex import R
 
 from autogen.agentchat.agent import Agent
-from autogen.agentchat.contrib.img_utils import get_image_data, llava_formatter
-from autogen.agentchat.contrib.multimodal_conversable_agent import MultimodalConversableAgent
+from autogen.agentchat.contrib.img_utils import llava_formatter
+from autogen.agentchat.contrib.multimodal_conversable_agent import (
+    MultimodalConversableAgent,
+)
 from autogen.code_utils import content_str
 
 try:
@@ -54,7 +53,9 @@ class LLaVAAgent(MultimodalConversableAgent):
         )
 
         assert self.llm_config is not None, "llm_config must be provided."
-        self.register_reply([Agent, None], reply_func=LLaVAAgent._image_reply, position=2)
+        self.register_reply(
+            [Agent, None], reply_func=LLaVAAgent._image_reply, position=2
+        )
 
     def _image_reply(self, messages=None, sender=None, config=None):
         # Note: we did not use "llm_config" yet.
@@ -73,7 +74,11 @@ class LLaVAAgent(MultimodalConversableAgent):
         for msg in messages:
             role = "Human" if msg["role"] == "user" else "Assistant"
             # pdb.set_trace()
-            images += [d["image_url"]["url"] for d in msg["content"] if d["type"] == "image_url"]
+            images += [
+                d["image_url"]["url"]
+                for d in msg["content"]
+                if d["type"] == "image_url"
+            ]
             content_prompt = content_str(msg["content"])
             prompt += f"{SEP}{role}: {content_prompt}\n"
         prompt += "\n" + SEP + "Assistant: "
@@ -99,9 +104,17 @@ class LLaVAAgent(MultimodalConversableAgent):
 
 
 def _llava_call_binary_with_config(
-    prompt: str, images: list, config: dict, max_new_tokens: int = 1000, temperature: float = 0.5, seed: int = 1
+    prompt: str,
+    images: list,
+    config: dict,
+    max_new_tokens: int = 1000,
+    temperature: float = 0.5,
+    seed: int = 1,
 ):
-    if config["base_url"].find("0.0.0.0") >= 0 or config["base_url"].find("localhost") >= 0:
+    if (
+        config["base_url"].find("0.0.0.0") >= 0
+        or config["base_url"].find("localhost") >= 0
+    ):
         llava_mode = "local"
     else:
         llava_mode = "remote"
@@ -118,10 +131,15 @@ def _llava_call_binary_with_config(
         }
 
         response = requests.post(
-            config["base_url"].rstrip("/") + "/worker_generate_stream", headers=headers, json=pload, stream=False
+            config["base_url"].rstrip("/") + "/worker_generate_stream",
+            headers=headers,
+            json=pload,
+            stream=False,
         )
 
-        for chunk in response.iter_lines(chunk_size=8192, decode_unicode=False, delimiter=b"\0"):
+        for chunk in response.iter_lines(
+            chunk_size=8192, decode_unicode=False, delimiter=b"\0"
+        ):
             if chunk:
                 data = json.loads(chunk.decode("utf-8"))
                 output = data["text"].split(SEP)[-1]
@@ -129,7 +147,12 @@ def _llava_call_binary_with_config(
         # The Replicate version of the model only support 1 image for now.
         img = "data:image/jpeg;base64," + images[0]
         response = replicate.run(
-            config["base_url"], input={"image": img, "prompt": prompt.replace("<image>", " "), "seed": seed}
+            config["base_url"],
+            input={
+                "image": img,
+                "prompt": prompt.replace("<image>", " "),
+                "seed": seed,
+            },
         )
         # The yorickvp/llava-13b model can stream output as it's running.
         # The predict method returns an iterator, and you can iterate over that output.
@@ -144,14 +167,21 @@ def _llava_call_binary_with_config(
 
 
 def llava_call_binary(
-    prompt: str, images: list, config_list: list, max_new_tokens: int = 1000, temperature: float = 0.5, seed: int = 1
+    prompt: str,
+    images: list,
+    config_list: list,
+    max_new_tokens: int = 1000,
+    temperature: float = 0.5,
+    seed: int = 1,
 ):
     # TODO 1: add caching around the LLaVA call to save compute and cost
     # TODO 2: add `seed` to ensure reproducibility. The seed is not working now.
 
     for config in config_list:
         try:
-            return _llava_call_binary_with_config(prompt, images, config, max_new_tokens, temperature, seed)
+            return _llava_call_binary_with_config(
+                prompt, images, config, max_new_tokens, temperature, seed
+            )
         except Exception as e:
             print(f"Error: {e}")
             continue

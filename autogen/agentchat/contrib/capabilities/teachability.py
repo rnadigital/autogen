@@ -2,7 +2,7 @@ import os
 from autogen.agentchat.assistant_agent import ConversableAgent
 from autogen.agentchat.contrib.capabilities.agent_capability import AgentCapability
 from autogen.agentchat.contrib.text_analyzer_agent import TextAnalyzerAgent
-from typing import Dict, Optional, Union, List, Tuple, Any
+from typing import Dict, Optional, Union
 import chromadb
 from chromadb.config import Settings
 import pickle
@@ -61,7 +61,9 @@ class Teachability(AgentCapability):
         self.teachable_agent = agent
 
         # Register a hook for processing the last message.
-        agent.register_hook(hookable_method=agent.process_last_message, hook=self.process_last_message)
+        agent.register_hook(
+            hookable_method=agent.process_last_message, hook=self.process_last_message
+        )
 
         # Was an llm_config passed to the constructor?
         if self.llm_config is None:
@@ -144,7 +146,8 @@ class Teachability(AgentCapability):
             )
             # Extract the information.
             answer = self._analyze(
-                comment, "Copy the information from the TEXT that should be committed to memory. Add no explanation."
+                comment,
+                "Copy the information from the TEXT that should be committed to memory. Add no explanation.",
             )
             # Add the question-answer pair to the vector DB.
             if self.verbosity >= 1:
@@ -162,7 +165,12 @@ class Teachability(AgentCapability):
 
         # First, use the comment directly as the lookup key.
         if self.verbosity >= 1:
-            print(colored("\nLOOK FOR RELEVANT MEMOS, AS QUESTION-ANSWER PAIRS", "light_yellow"))
+            print(
+                colored(
+                    "\nLOOK FOR RELEVANT MEMOS, AS QUESTION-ANSWER PAIRS",
+                    "light_yellow",
+                )
+            )
         memo_list = self._retrieve_relevant_memos(comment)
 
         # Next, if the comment involves a task, then extract and generalize the task before using it as the lookup key.
@@ -172,10 +180,16 @@ class Teachability(AgentCapability):
         )
         if "yes" in response.lower():
             if self.verbosity >= 1:
-                print(colored("\nLOOK FOR RELEVANT MEMOS, AS TASK-ADVICE PAIRS", "light_yellow"))
+                print(
+                    colored(
+                        "\nLOOK FOR RELEVANT MEMOS, AS TASK-ADVICE PAIRS",
+                        "light_yellow",
+                    )
+                )
             # Extract the task.
             task = self._analyze(
-                comment, "Copy just the task from the TEXT, then stop. Don't solve it, and don't include any advice."
+                comment,
+                "Copy just the task from the TEXT, then stop. Don't solve it, and don't include any advice.",
             )
             # Generalize the task.
             general_task = self._analyze(
@@ -194,14 +208,20 @@ class Teachability(AgentCapability):
     def _retrieve_relevant_memos(self, input_text):
         """Returns semantically related memos from the DB."""
         memo_list = self.memo_store.get_related_memos(
-            input_text, n_results=self.max_num_retrievals, threshold=self.recall_threshold
+            input_text,
+            n_results=self.max_num_retrievals,
+            threshold=self.recall_threshold,
         )
 
         if self.verbosity >= 1:
             # Was anything retrieved?
             if len(memo_list) == 0:
                 # No. Look at the closest memo.
-                print(colored("\nTHE CLOSEST MEMO IS BEYOND THE THRESHOLD:", "light_yellow"))
+                print(
+                    colored(
+                        "\nTHE CLOSEST MEMO IS BEYOND THE THRESHOLD:", "light_yellow"
+                    )
+                )
                 self.memo_store.get_nearest_memo(input_text)
                 print()  # Print a blank line. The memo details were printed by get_nearest_memo().
 
@@ -217,7 +237,12 @@ class Teachability(AgentCapability):
             for memo in memo_list:
                 info = info + "- " + memo + "\n"
             if self.verbosity >= 1:
-                print(colored("\nMEMOS APPENDED TO LAST MESSAGE...\n" + info + "\n", "light_yellow"))
+                print(
+                    colored(
+                        "\nMEMOS APPENDED TO LAST MESSAGE...\n" + info + "\n",
+                        "light_yellow",
+                    )
+                )
             memo_texts = memo_texts + "\n" + info
         return memo_texts
 
@@ -225,10 +250,16 @@ class Teachability(AgentCapability):
         """Asks TextAnalyzerAgent to analyze the given text according to specific instructions."""
         self.analyzer.reset()  # Clear the analyzer's list of messages.
         self.teachable_agent.send(
-            recipient=self.analyzer, message=text_to_analyze, request_reply=False, silent=(self.verbosity < 2)
+            recipient=self.analyzer,
+            message=text_to_analyze,
+            request_reply=False,
+            silent=(self.verbosity < 2),
         )  # Put the message in the analyzer's list.
         self.teachable_agent.send(
-            recipient=self.analyzer, message=analysis_instructions, request_reply=True, silent=(self.verbosity < 2)
+            recipient=self.analyzer,
+            message=analysis_instructions,
+            request_reply=True,
+            silent=(self.verbosity < 2),
         )  # Request the reply.
         return self.teachable_agent.last_message(self.analyzer)["content"]
 
@@ -253,10 +284,15 @@ class MemoStore:
 
         # Load or create the vector DB on disk.
         settings = Settings(
-            anonymized_telemetry=False, allow_reset=True, is_persistent=True, persist_directory=path_to_db_dir
+            anonymized_telemetry=False,
+            allow_reset=True,
+            is_persistent=True,
+            persist_directory=path_to_db_dir,
         )
         self.db_client = chromadb.Client(settings)
-        self.vec_db = self.db_client.create_collection("memos", get_or_create=True)  # The collection is the DB.
+        self.vec_db = self.db_client.create_collection(
+            "memos", get_or_create=True
+        )  # The collection is the DB.
 
         # Load or create the associated memo dict on disk.
         self.path_to_dict = os.path.join(path_to_db_dir, "uid_text_dict.pkl")
@@ -282,7 +318,9 @@ class MemoStore:
             input_text, output_text = text
             print(
                 colored(
-                    "  ID: {}\n    INPUT TEXT: {}\n    OUTPUT TEXT: {}".format(uid, input_text, output_text),
+                    "  ID: {}\n    INPUT TEXT: {}\n    OUTPUT TEXT: {}".format(
+                        uid, input_text, output_text
+                    ),
                     "light_green",
                 )
             )
@@ -320,7 +358,11 @@ class MemoStore:
     def get_nearest_memo(self, query_text):
         """Retrieves the nearest memo to the given query text."""
         results = self.vec_db.query(query_texts=[query_text], n_results=1)
-        uid, input_text, distance = results["ids"][0][0], results["documents"][0][0], results["distances"][0][0]
+        uid, input_text, distance = (
+            results["ids"][0][0],
+            results["documents"][0][0],
+            results["distances"][0][0],
+        )
         input_text_2, output_text = self.uid_text_dict[uid]
         assert input_text == input_text_2
         if self.verbosity >= 1:
@@ -342,7 +384,11 @@ class MemoStore:
         memos = []
         num_results = len(results["ids"][0])
         for i in range(num_results):
-            uid, input_text, distance = results["ids"][0][i], results["documents"][0][i], results["distances"][0][i]
+            uid, input_text, distance = (
+                results["ids"][0][i],
+                results["documents"][0][i],
+                results["distances"][0][i],
+            )
             if distance < threshold:
                 input_text_2, output_text = self.uid_text_dict[uid]
                 assert input_text == input_text_2
@@ -363,12 +409,32 @@ class MemoStore:
         if self.verbosity >= 1:
             print(colored("\nPREPOPULATING MEMORY", "light_green"))
         examples = []
-        examples.append({"text": "When I say papers I mean research papers, which are typically pdfs.", "label": "yes"})
-        examples.append({"text": "Please verify that each paper you listed actually uses langchain.", "label": "no"})
-        examples.append({"text": "Tell gpt the output should still be latex code.", "label": "no"})
-        examples.append({"text": "Hint: convert pdfs to text and then answer questions based on them.", "label": "yes"})
         examples.append(
-            {"text": "To create a good PPT, include enough content to make it interesting.", "label": "yes"}
+            {
+                "text": "When I say papers I mean research papers, which are typically pdfs.",
+                "label": "yes",
+            }
+        )
+        examples.append(
+            {
+                "text": "Please verify that each paper you listed actually uses langchain.",
+                "label": "no",
+            }
+        )
+        examples.append(
+            {"text": "Tell gpt the output should still be latex code.", "label": "no"}
+        )
+        examples.append(
+            {
+                "text": "Hint: convert pdfs to text and then answer questions based on them.",
+                "label": "yes",
+            }
+        )
+        examples.append(
+            {
+                "text": "To create a good PPT, include enough content to make it interesting.",
+                "label": "yes",
+            }
         )
         examples.append(
             {
@@ -376,9 +442,24 @@ class MemoStore:
                 "label": "no",
             }
         )
-        examples.append({"text": "When writing code, remember to include any libraries that are used.", "label": "yes"})
-        examples.append({"text": "Please summarize the papers by Eric Horvitz on bounded rationality.", "label": "no"})
-        examples.append({"text": "Compare the h-index of Daniel Weld and Oren Etzioni.", "label": "no"})
+        examples.append(
+            {
+                "text": "When writing code, remember to include any libraries that are used.",
+                "label": "yes",
+            }
+        )
+        examples.append(
+            {
+                "text": "Please summarize the papers by Eric Horvitz on bounded rationality.",
+                "label": "no",
+            }
+        )
+        examples.append(
+            {
+                "text": "Compare the h-index of Daniel Weld and Oren Etzioni.",
+                "label": "no",
+            }
+        )
         examples.append(
             {
                 "text": "Double check to be sure that the columns in a table correspond to what was asked for.",

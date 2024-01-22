@@ -56,11 +56,16 @@ def problem_to_json():
             a = {
                 "id": f"problem{i}",
                 "template": "./",
-                "substitutions": {"prompt.txt": {"__PROMPT__": problem}, "answer.txt": {"__ANSWER__": answers[i]}},
+                "substitutions": {
+                    "prompt.txt": {"__PROMPT__": problem},
+                    "answer.txt": {"__ANSWER__": answers[i]},
+                },
             }
             # Convert the dictionary to a JSON string and write it to the file
             json_string = json.dumps(a)
-            f.write(json_string + "\n")  # Add a newline character after each JSON object
+            f.write(
+                json_string + "\n"
+            )  # Add a newline character after each JSON object
 
 
 problem_to_json()

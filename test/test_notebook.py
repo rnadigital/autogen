@@ -4,7 +4,7 @@ import pytest
 from conftest import skip_openai
 
 try:
-    import openai
+    pass
 except ImportError:
     skip = True
 else:
@@ -36,12 +36,16 @@ def run_notebook(input_nb, output_nb="executed_openai_notebook.ipynb", save=Fals
                         if "text" in output:
                             nb_output_file.write(output["text"].strip() + "\n")
                         elif "data" in output and "text/plain" in output["data"]:
-                            nb_output_file.write(output["data"]["text/plain"].strip() + "\n")
+                            nb_output_file.write(
+                                output["data"]["text/plain"].strip() + "\n"
+                            )
     except CellExecutionError:
         raise
     finally:
         if save:
-            with open(os.path.join(here, output_nb), "w", encoding="utf-8") as nb_executed_file:
+            with open(
+                os.path.join(here, output_nb), "w", encoding="utf-8"
+            ) as nb_executed_file:
                 nbformat.write(nb, nb_executed_file)
 
 
@@ -115,7 +119,9 @@ def _test_hierarchy_flow_using_select_speaker(save=False):
     reason="do not run if openai is not installed or py!=3.12",
 )
 def test_graph_modelling_language_using_select_speaker(save=False):
-    run_notebook("agentchat_graph_modelling_language_using_select_speaker.ipynb", save=save)
+    run_notebook(
+        "agentchat_graph_modelling_language_using_select_speaker.ipynb", save=save
+    )
 
 
 @pytest.mark.skipif(

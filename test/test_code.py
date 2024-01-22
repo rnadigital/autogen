@@ -233,7 +233,11 @@ print(f"Text: {text}")
 """
     )
     print(codeblocks)
-    assert len(codeblocks) == 2 and codeblocks[0][0] == "python" and codeblocks[1][0] == "python"
+    assert (
+        len(codeblocks) == 2
+        and codeblocks[0][0] == "python"
+        and codeblocks[1][0] == "python"
+    )
 
     codeblocks = extract_code(
         """
@@ -258,7 +262,11 @@ print(f"Text: {text}")
 """
     )
     print(codeblocks)
-    assert len(codeblocks) == 2 and codeblocks[0][0] == "python" and codeblocks[1][0] == "python"
+    assert (
+        len(codeblocks) == 2
+        and codeblocks[0][0] == "python"
+        and codeblocks[1][0] == "python"
+    )
 
     # Check for indented code blocks
     codeblocks = extract_code(
@@ -309,13 +317,17 @@ def scrape(url):
     assert len(codeblocks) == 1 and codeblocks[0] == (UNKNOWN, line)
 
     # Enable single line code detection
-    codeblocks = extract_code("Run `source setup.sh` from terminal", detect_single_line_code=True)
+    codeblocks = extract_code(
+        "Run `source setup.sh` from terminal", detect_single_line_code=True
+    )
     assert len(codeblocks) == 1 and codeblocks[0] == ("", "source setup.sh")
 
 
 # skip if os is windows
 @pytest.mark.skipif(
-    sys.platform in ["win32"] or (not is_docker_running() and not in_docker_container()), reason="docker is not running"
+    sys.platform in ["win32"]
+    or (not is_docker_running() and not in_docker_container()),
+    reason="docker is not running",
 )
 def test_execute_code(use_docker=None):
     try:
@@ -325,10 +337,16 @@ def test_execute_code(use_docker=None):
         docker = None
     if use_docker is None:
         use_docker = docker is not None
-    exit_code, msg, image = execute_code("print('hello world')", filename="tmp/codetest.py", use_docker=use_docker)
+    exit_code, msg, image = execute_code(
+        "print('hello world')", filename="tmp/codetest.py", use_docker=use_docker
+    )
     assert exit_code == 0 and msg == "hello world\n", msg
     # read a file
-    print(execute_code("with open('tmp/codetest.py', 'r') as f: a=f.read()", use_docker=use_docker))
+    print(
+        execute_code(
+            "with open('tmp/codetest.py', 'r') as f: a=f.read()", use_docker=use_docker
+        )
+    )
     # create a file
     exit_code, msg, image = execute_code(
         "with open('tmp/codetest.py', 'w') as f: f.write('b=1')",
@@ -342,7 +360,9 @@ def test_execute_code(use_docker=None):
     ), msg
     print(
         execute_code(
-            "with open('tmp/codetest.py', 'w') as f: f.write('b=1')", work_dir=f"{here}/my_tmp", use_docker=use_docker
+            "with open('tmp/codetest.py', 'w') as f: f.write('b=1')",
+            work_dir=f"{here}/my_tmp",
+            use_docker=use_docker,
         )
     )
     # execute code in a file
@@ -353,26 +373,41 @@ def test_execute_code(use_docker=None):
     assert exit_code, msg
     assert 'File ""' in msg or 'File ".\\"' in msg  # py3.8 + win32
     # execute code which takes a long time
-    exit_code, error, image = execute_code("import time; time.sleep(2)", timeout=1, use_docker=use_docker)
+    exit_code, error, image = execute_code(
+        "import time; time.sleep(2)", timeout=1, use_docker=use_docker
+    )
     assert exit_code and error == "Timeout" or WIN32
-    assert isinstance(image, str) or docker is None or os.path.exists("/.dockerenv") or use_docker is False
+    assert (
+        isinstance(image, str)
+        or docker is None
+        or os.path.exists("/.dockerenv")
+        or use_docker is False
+    )
 
 
 @pytest.mark.skipif(
-    sys.platform in ["win32"] or (not is_docker_running() and not in_docker_container()), reason="docker is not running"
+    sys.platform in ["win32"]
+    or (not is_docker_running() and not in_docker_container()),
+    reason="docker is not running",
 )
 def test_execute_code_with_custom_filename_on_docker():
-    exit_code, msg, image = execute_code("print('hello world')", filename="tmp/codetest.py", use_docker=True)
+    exit_code, msg, image = execute_code(
+        "print('hello world')", filename="tmp/codetest.py", use_docker=True
+    )
     assert exit_code == 0 and msg == "hello world\n", msg
     assert image == "python:tmp_codetest.py"
 
 
 @pytest.mark.skipif(
-    sys.platform in ["win32"] or (not is_docker_running() and not in_docker_container()), reason="docker is not running"
+    sys.platform in ["win32"]
+    or (not is_docker_running() and not in_docker_container()),
+    reason="docker is not running",
 )
 def test_execute_code_with_misformed_filename_on_docker():
     exit_code, msg, image = execute_code(
-        "print('hello world')", filename="tmp/codetest.py (some extra information)", use_docker=True
+        "print('hello world')",
+        filename="tmp/codetest.py (some extra information)",
+        use_docker=True,
     )
     assert exit_code == 0 and msg == "hello world\n", msg
     assert image == "python:tmp_codetest.py__some_extra_information_"
@@ -388,7 +423,9 @@ def test_execute_code_nodocker():
 
 
 def test_execute_code_no_docker():
-    exit_code, error, image = execute_code("import time; time.sleep(2)", timeout=1, use_docker=False)
+    exit_code, error, image = execute_code(
+        "import time; time.sleep(2)", timeout=1, use_docker=False
+    )
     if sys.platform != "win32":
         assert exit_code and error == "Timeout"
     assert image is None
@@ -479,7 +516,7 @@ def test_can_use_docker_or_throw():
 
 def _test_improve():
     try:
-        import openai
+        pass
     except ImportError:
         return
     config_list = autogen.config_list_openai_aoai(KEY_LOC)
@@ -513,15 +550,24 @@ class TestContentStr(unittest.TestCase):
         self.assertEqual(content_str("simple string"), "simple string")
 
     def test_list_of_text_content(self):
-        content = [{"type": "text", "text": "hello"}, {"type": "text", "text": " world"}]
+        content = [
+            {"type": "text", "text": "hello"},
+            {"type": "text", "text": " world"},
+        ]
         self.assertEqual(content_str(content), "hello world")
 
     def test_mixed_content(self):
-        content = [{"type": "text", "text": "hello"}, {"type": "image_url", "url": "http://example.com/image.png"}]
+        content = [
+            {"type": "text", "text": "hello"},
+            {"type": "image_url", "url": "http://example.com/image.png"},
+        ]
         self.assertEqual(content_str(content), "hello<image>")
 
     def test_invalid_content(self):
-        content = [{"type": "text", "text": "hello"}, {"type": "wrong_type", "url": "http://example.com/image.png"}]
+        content = [
+            {"type": "text", "text": "hello"},
+            {"type": "wrong_type", "url": "http://example.com/image.png"},
+        ]
         with self.assertRaises(ValueError) as context:
             content_str(content)
         self.assertIn("Wrong content format", str(context.exception))

@@ -11,7 +11,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from conftest import skip_openai  # noqa: E402
 
 try:
-    from openai import OpenAI
+    pass
 except ImportError:
     skip = True
 else:
@@ -100,17 +100,26 @@ def test_execute_function():
 
     # function name called is wrong or doesn't exist
     wrong_func_name = {"name": "subtract_num", "arguments": '{ "num_to_be_added": 5 }'}
-    assert "Error: Function" in user.execute_function(func_call=wrong_func_name)[1]["content"]
+    assert (
+        "Error: Function"
+        in user.execute_function(func_call=wrong_func_name)[1]["content"]
+    )
 
     # arguments passed is not in correct json format
     wrong_json_format = {
         "name": "add_num",
         "arguments": '{ "num_to_be_added": 5, given_num: 10 }',
     }  # should be "given_num" with quotes
-    assert "You argument should follow json format." in user.execute_function(func_call=wrong_json_format)[1]["content"]
+    assert (
+        "You argument should follow json format."
+        in user.execute_function(func_call=wrong_json_format)[1]["content"]
+    )
 
     # function execution error with wrong arguments passed
-    wrong_args = {"name": "add_num", "arguments": '{ "num_to_be_added": 5, "given_num": 10 }'}
+    wrong_args = {
+        "name": "add_num",
+        "arguments": '{ "num_to_be_added": 5, "given_num": 10 }',
+    }
     assert "Error: " in user.execute_function(func_call=wrong_args)[1]["content"]
 
     # 2. test calling a class method
@@ -122,7 +131,9 @@ def test_execute_function():
             self.given_num = num_to_be_added + self.given_num
             return self.given_num
 
-    user = UserProxyAgent(name="test", function_map={"add_num": AddNum(given_num=10).add})
+    user = UserProxyAgent(
+        name="test", function_map={"add_num": AddNum(given_num=10).add}
+    )
     func_call = {"name": "add_num", "arguments": '{ "num_to_be_added": 5 }'}
     assert user.execute_function(func_call=func_call)[1]["content"] == "15"
     assert user.execute_function(func_call=func_call)[1]["content"] == "20"
@@ -157,7 +168,10 @@ async def test_a_execute_function():
 
     # function name called is wrong or doesn't exist
     wrong_func_name = {"name": "subtract_num", "arguments": '{ "num_to_be_added": 5 }'}
-    assert "Error: Function" in (await user.a_execute_function(func_call=wrong_func_name))[1]["content"]
+    assert (
+        "Error: Function"
+        in (await user.a_execute_function(func_call=wrong_func_name))[1]["content"]
+    )
 
     # arguments passed is not in correct json format
     wrong_json_format = {
@@ -170,8 +184,13 @@ async def test_a_execute_function():
     )
 
     # function execution error with wrong arguments passed
-    wrong_args = {"name": "add_num", "arguments": '{ "num_to_be_added": 5, "given_num": 10 }'}
-    assert "Error: " in (await user.a_execute_function(func_call=wrong_args))[1]["content"]
+    wrong_args = {
+        "name": "add_num",
+        "arguments": '{ "num_to_be_added": 5, "given_num": 10 }',
+    }
+    assert (
+        "Error: " in (await user.a_execute_function(func_call=wrong_args))[1]["content"]
+    )
 
     # 2. test calling a class method
     class AddNum:
@@ -182,7 +201,9 @@ async def test_a_execute_function():
             self.given_num = num_to_be_added + self.given_num
             return self.given_num
 
-    user = UserProxyAgent(name="test", function_map={"add_num": AddNum(given_num=10).add})
+    user = UserProxyAgent(
+        name="test", function_map={"add_num": AddNum(given_num=10).add}
+    )
     func_call = {"name": "add_num", "arguments": '{ "num_to_be_added": 5 }'}
     assert (await user.a_execute_function(func_call=func_call))[1]["content"] == "15"
     assert (await user.a_execute_function(func_call=func_call))[1]["content"] == "20"
@@ -204,7 +225,14 @@ def test_update_function():
     config_list_gpt4 = autogen.config_list_from_json(
         OAI_CONFIG_LIST,
         filter_dict={
-            "model": ["gpt-4", "gpt-4-0314", "gpt4", "gpt-4-32k", "gpt-4-32k-0314", "gpt-4-32k-v0314"],
+            "model": [
+                "gpt-4",
+                "gpt-4-0314",
+                "gpt4",
+                "gpt-4-32k",
+                "gpt-4-32k-0314",
+                "gpt-4-32k-v0314",
+            ],
         },
         file_location=KEY_LOC,
     )

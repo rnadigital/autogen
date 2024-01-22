@@ -49,7 +49,9 @@ def metrics(results_fh):
         counter = counters[i]
         n = counter["successes"] + counter["failures"] + counter["missing"]
         score = _safe_div(counter["successes"], n)
-        print(f"{i},{n},{counter['successes']},{counter['failures']},{counter['missing']},{score}")
+        print(
+            f"{i},{n},{counter['successes']},{counter['failures']},{counter['missing']},{score}"
+        )
 
 
 ###############################################################################

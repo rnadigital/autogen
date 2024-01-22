@@ -31,12 +31,18 @@ def create_teachable_agent(reset_db=False):
     # Load LLM inference endpoints from an env variable or a file
     # See https://microsoft.github.io/autogen/docs/FAQ#set-your-api-endpoints
     # and OAI_CONFIG_LIST_sample
-    config_list = config_list_from_json(env_or_file=OAI_CONFIG_LIST, filter_dict=filter_dict, file_location=KEY_LOC)
+    config_list = config_list_from_json(
+        env_or_file=OAI_CONFIG_LIST, filter_dict=filter_dict, file_location=KEY_LOC
+    )
 
     # Start by instantiating any agent that inherits from ConversableAgent.
     teachable_agent = ConversableAgent(
         name="teachable_agent",
-        llm_config={"config_list": config_list, "timeout": 120, "cache_seed": None},  # Disable caching.
+        llm_config={
+            "config_list": config_list,
+            "timeout": 120,
+            "cache_seed": None,
+        },  # Disable caching.
     )
 
     # Instantiate the Teachability capability. Its parameters are all optional.
@@ -62,7 +68,10 @@ def interact_freely_with_user():
     user = UserProxyAgent("user", human_input_mode="ALWAYS")
 
     # Start the chat.
-    teachable_agent.initiate_chat(user, message="Greetings, I'm a teachable user assistant! What's on your mind today?")
+    teachable_agent.initiate_chat(
+        user,
+        message="Greetings, I'm a teachable user assistant! What's on your mind today?",
+    )
 
 
 if __name__ == "__main__":

@@ -26,20 +26,20 @@ class UserProxyAgent(ConversableAgent):
     }
 
     def __init__(
-            self,
-            name: str,
-            is_termination_msg: Optional[Callable[[Dict], bool]] = None,
-            max_consecutive_auto_reply: Optional[int] = None,
-            human_input_mode: Optional[str] = "ALWAYS",
-            function_map: Optional[Dict[str, Callable]] = None,
-            code_execution_config: Optional[Union[Dict, Literal[False]]] = None,
-            default_auto_reply: Optional[Union[str, Dict, None]] = "",
-            llm_config: Optional[Union[Dict, Literal[False]]] = False,
-            system_message: Optional[Union[str, List]] = "",
-            description: Optional[str] = None,
-            use_sockets: Optional[bool] = False,
-            socket_client: Optional[Union[SimpleClient, bool]] = None,
-            sid: Optional[Union[str, None]] = "",
+        self,
+        name: str,
+        is_termination_msg: Optional[Callable[[Dict], bool]] = None,
+        max_consecutive_auto_reply: Optional[int] = None,
+        human_input_mode: Optional[str] = "ALWAYS",
+        function_map: Optional[Dict[str, Callable]] = None,
+        code_execution_config: Optional[Union[Dict, Literal[False]]] = None,
+        default_auto_reply: Optional[Union[str, Dict, None]] = "",
+        llm_config: Optional[Union[Dict, Literal[False]]] = False,
+        system_message: Optional[Union[str, List]] = "",
+        description: Optional[str] = None,
+        use_sockets: Optional[bool] = False,
+        socket_client: Optional[Union[SimpleClient, bool]] = None,
+        sid: Optional[Union[str, None]] = "",
     ):
         """
         Args:
@@ -99,5 +99,5 @@ class UserProxyAgent(ConversableAgent):
             else self.DEFAULT_USER_PROXY_AGENT_DESCRIPTIONS[human_input_mode],
             use_sockets=use_sockets,
             socket_client=socket_client,
-            sid=sid
+            sid=sid,
         )

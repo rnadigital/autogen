@@ -99,14 +99,20 @@ def split_text_to_chunks(
                 lines[0] = lines[0][split_len:]
                 lines_tokens[0] = count_token(lines[0])
             else:
-                logger.warning("Failed to split docs with must_break_at_empty_line being True, set to False.")
+                logger.warning(
+                    "Failed to split docs with must_break_at_empty_line being True, set to False."
+                )
                 must_break_at_empty_line = False
-        chunks.append(prev) if len(prev) > 10 else None  # don't add chunks less than 10 characters
+        chunks.append(prev) if len(
+            prev
+        ) > 10 else None  # don't add chunks less than 10 characters
         lines = lines[cnt:]
         lines_tokens = lines_tokens[cnt:]
         sum_tokens = sum(lines_tokens)
     text_to_chunk = "\n".join(lines)
-    chunks.append(text_to_chunk) if len(text_to_chunk) > 10 else None  # don't add chunks less than 10 characters
+    chunks.append(text_to_chunk) if len(
+        text_to_chunk
+    ) > 10 else None  # don't add chunks less than 10 characters
     return chunks
 
 
@@ -163,12 +169,16 @@ def split_files_to_chunks(
         if custom_text_split_function is not None:
             chunks += custom_text_split_function(text)
         else:
-            chunks += split_text_to_chunks(text, max_tokens, chunk_mode, must_break_at_empty_line)
+            chunks += split_text_to_chunks(
+                text, max_tokens, chunk_mode, must_break_at_empty_line
+            )
 
     return chunks
 
 
-def get_files_from_dir(dir_path: Union[str, List[str]], types: list = TEXT_FORMATS, recursive: bool = True):
+def get_files_from_dir(
+    dir_path: Union[str, List[str]], types: list = TEXT_FORMATS, recursive: bool = True
+):
     """Return a list of all the files in a given directory, a url, a file path or a list of them."""
     if len(types) == 0:
         raise ValueError("types cannot be empty.")
@@ -203,7 +213,9 @@ def get_files_from_dir(dir_path: Union[str, List[str]], types: list = TEXT_FORMA
     if os.path.exists(dir_path):
         for type in types:
             if recursive:
-                files += glob.glob(os.path.join(dir_path, f"**/*.{type}"), recursive=True)
+                files += glob.glob(
+                    os.path.join(dir_path, f"**/*.{type}"), recursive=True
+                )
             else:
                 files += glob.glob(os.path.join(dir_path, f"*.{type}"), recursive=False)
     else:
@@ -294,7 +306,11 @@ def create_vector_db_from_dir(
             # https://github.com/nmslib/hnswlib#supported-distances
             # https://github.com/chroma-core/chroma/blob/566bc80f6c8ee29f7d99b6322654f32183c368c4/chromadb/segment/impl/vector/local_hnsw.py#L184
             # https://github.com/nmslib/hnswlib/blob/master/ALGO_PARAMS.md
-            metadata={"hnsw:space": "ip", "hnsw:construction_ef": 30, "hnsw:M": 32},  # ip, l2, cosine
+            metadata={
+                "hnsw:space": "ip",
+                "hnsw:construction_ef": 30,
+                "hnsw:M": 32,
+            },  # ip, l2, cosine
         )
 
         length = 0
@@ -319,7 +335,9 @@ def create_vector_db_from_dir(
             end_idx = i + min(40000, len(chunks) - i)
             collection.upsert(
                 documents=chunks[i:end_idx],
-                ids=[f"doc_{j+length}" for j in range(i, end_idx)],  # unique for each doc
+                ids=[
+                    f"doc_{j+length}" for j in range(i, end_idx)
+                ],  # unique for each doc
             )
     except ValueError as e:
         logger.warning(f"{e}")
@@ -367,13 +385,17 @@ def query_vector_db(
     # collection. So we compute the embeddings ourselves and pass it to the query function.
     collection = client.get_collection(collection_name)
     embedding_function = (
-        ef.SentenceTransformerEmbeddingFunction(embedding_model) if embedding_function is None else embedding_function
+        ef.SentenceTransformerEmbeddingFunction(embedding_model)
+        if embedding_function is None
+        else embedding_function
     )
     query_embeddings = embedding_function(query_texts)
     # Query/search n most similar results. You can also .get by id
     results = collection.query(
         query_embeddings=query_embeddings,
         n_results=n_results,
-        where_document={"$contains": search_string} if search_string else None,  # optional filter
+        where_document={"$contains": search_string}
+        if search_string
+        else None,  # optional filter
     )
     return results

@@ -53,7 +53,10 @@ def test_gpt_assistant_chat():
     name = "For test_gpt_assistant_chat"
     analyst = GPTAssistantAgent(
         name=name,
-        llm_config={"tools": [{"type": "function", "function": ossinsight_api_schema}], "config_list": config_list},
+        llm_config={
+            "tools": [{"type": "function", "function": ossinsight_api_schema}],
+            "config_list": config_list,
+        },
         instructions="Hello, Open Source Project Analyst. You'll conduct comprehensive evaluations of open source projects or organizations on the GitHub platform",
     )
     analyst.register_function(
@@ -63,7 +66,12 @@ def test_gpt_assistant_chat():
     )
 
     ok, response = analyst._invoke_assistant(
-        [{"role": "user", "content": "What is the most popular open source project on GitHub?"}]
+        [
+            {
+                "role": "user",
+                "content": "What is the most popular open source project on GitHub?",
+            }
+        ]
     )
     executable = analyst.can_execute_function("ossinsight_data_api")
     analyst.reset()
@@ -193,7 +201,9 @@ def test_get_assistant_files():
     """
     current_file_path = os.path.abspath(__file__)
     openai_client = OpenAIWrapper(config_list=config_list)._clients[0]
-    file = openai_client.files.create(file=open(current_file_path, "rb"), purpose="assistants")
+    file = openai_client.files.create(
+        file=open(current_file_path, "rb"), purpose="assistants"
+    )
     name = "For test_get_assistant_files"
 
     assistant = GPTAssistantAgent(
@@ -206,7 +216,9 @@ def test_get_assistant_files():
         },
     )
 
-    files = assistant.openai_client.beta.assistants.files.list(assistant_id=assistant.assistant_id)
+    files = assistant.openai_client.beta.assistants.files.list(
+        assistant_id=assistant.assistant_id
+    )
     retrieved_file_ids = [fild.id for fild in files]
     expected_file_id = file.id
 
@@ -240,8 +252,12 @@ def test_assistant_retrieval():
 
     openai_client = OpenAIWrapper(config_list=config_list)._clients[0]
     current_file_path = os.path.abspath(__file__)
-    file_1 = openai_client.files.create(file=open(current_file_path, "rb"), purpose="assistants")
-    file_2 = openai_client.files.create(file=open(current_file_path, "rb"), purpose="assistants")
+    file_1 = openai_client.files.create(
+        file=open(current_file_path, "rb"), purpose="assistants"
+    )
+    file_2 = openai_client.files.create(
+        file=open(current_file_path, "rb"), purpose="assistants"
+    )
 
     all_llm_config = {
         "tools": [
@@ -314,8 +330,12 @@ def test_assistant_mismatch_retrieval():
 
     openai_client = OpenAIWrapper(config_list=config_list)._clients[0]
     current_file_path = os.path.abspath(__file__)
-    file_1 = openai_client.files.create(file=open(current_file_path, "rb"), purpose="assistants")
-    file_2 = openai_client.files.create(file=open(current_file_path, "rb"), purpose="assistants")
+    file_1 = openai_client.files.create(
+        file=open(current_file_path, "rb"), purpose="assistants"
+    )
+    file_2 = openai_client.files.create(
+        file=open(current_file_path, "rb"), purpose="assistants"
+    )
 
     all_llm_config = {
         "tools": [
@@ -365,7 +385,9 @@ def test_assistant_mismatch_retrieval():
         instructions="This is a test",
         llm_config=file_ids_mismatch_llm_config,
     )
-    candidate_file_ids_mismatch = retrieve_assistants_by_name(assistant_file_ids_mismatch.openai_client, name)
+    candidate_file_ids_mismatch = retrieve_assistants_by_name(
+        assistant_file_ids_mismatch.openai_client, name
+    )
     assert len(candidate_file_ids_mismatch) == 3
 
     # test tools mismatch
@@ -383,7 +405,9 @@ def test_assistant_mismatch_retrieval():
         instructions="This is a test",
         llm_config=tools_mismatch_llm_config,
     )
-    candidate_tools_mismatch = retrieve_assistants_by_name(assistant_tools_mistaching.openai_client, name)
+    candidate_tools_mismatch = retrieve_assistants_by_name(
+        assistant_tools_mistaching.openai_client, name
+    )
     assert len(candidate_tools_mismatch) == 4
 
     openai_client.files.delete(file_1.id)

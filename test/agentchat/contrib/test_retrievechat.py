@@ -10,7 +10,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from test_assistant_agent import KEY_LOC, OAI_CONFIG_LIST  # noqa: E402
 
 try:
-    import openai
     from autogen.agentchat.contrib.retrieve_assistant_agent import (
         RetrieveAssistantAgent,
     )
@@ -66,7 +65,9 @@ def test_retrievechat():
     assistant.reset()
 
     code_problem = "How can I use FLAML to perform a classification task, set use_spark=True, train 30 seconds and force cancel jobs if time limit is reached."
-    ragproxyagent.initiate_chat(assistant, problem=code_problem, search_string="spark", silent=True)
+    ragproxyagent.initiate_chat(
+        assistant, problem=code_problem, search_string="spark", silent=True
+    )
 
     print(conversations)
 

@@ -11,7 +11,9 @@ import shutil
 SCRIPT_PATH = os.path.realpath(__file__)
 SCRIPT_NAME = os.path.basename(SCRIPT_PATH)
 SCRIPT_DIR = os.path.dirname(SCRIPT_PATH)
-SCENARIOS_DIR = os.path.realpath(os.path.join(SCRIPT_DIR, os.path.pardir, "scenarios", "GAIA"))
+SCENARIOS_DIR = os.path.realpath(
+    os.path.join(SCRIPT_DIR, os.path.pardir, "scenarios", "GAIA")
+)
 
 
 def create_jsonl(name, tasks, template, model):
@@ -40,7 +42,9 @@ def create_jsonl(name, tasks, template, model):
                         "__FILE_NAME__": task["file_name"],
                         "__PROMPT__": task["Question"],
                     },
-                    "expected_answer.txt": {"__EXPECTED_ANSWER__": task["Final answer"]},
+                    "expected_answer.txt": {
+                        "__EXPECTED_ANSWER__": task["Final answer"]
+                    },
                 },
             }
 
@@ -61,15 +65,23 @@ if __name__ == "__main__":
     gaia_test_files = os.path.join(gaia_path, "2023", "test")
 
     if not os.path.isdir(gaia_validation_files) or not os.path.isdir(gaia_test_files):
-        sys.exit(f"Error: '{gaia_path}' does not appear to be a copy of the GAIA repository.")
+        sys.exit(
+            f"Error: '{gaia_path}' does not appear to be a copy of the GAIA repository."
+        )
 
     gaia_merged_files = os.path.realpath(os.path.join(SCENARIOS_DIR, "GAIA_Files"))
 
     shutil.copytree(
-        gaia_validation_files, gaia_merged_files, ignore=shutil.ignore_patterns("metadata.jsonl"), dirs_exist_ok=True
+        gaia_validation_files,
+        gaia_merged_files,
+        ignore=shutil.ignore_patterns("metadata.jsonl"),
+        dirs_exist_ok=True,
     )
     shutil.copytree(
-        gaia_test_files, gaia_merged_files, ignore=shutil.ignore_patterns("metadata.jsonl"), dirs_exist_ok=True
+        gaia_test_files,
+        gaia_merged_files,
+        ignore=shutil.ignore_patterns("metadata.jsonl"),
+        dirs_exist_ok=True,
     )
 
     # Load the GAIA data
@@ -102,9 +114,30 @@ if __name__ == "__main__":
     # Create the various combinations of [models] x [templates]
     for m in models.items():
         for t in templates.items():
-            create_jsonl(f"gaia_validation_level_1__{t[0]}_{m[0]}", gaia_validation_tasks[0], t[1], m[1])
-            create_jsonl(f"gaia_validation_level_2__{t[0]}_{m[0]}", gaia_validation_tasks[1], t[1], m[1])
-            create_jsonl(f"gaia_validation_level_3__{t[0]}_{m[0]}", gaia_validation_tasks[2], t[1], m[1])
-            create_jsonl(f"gaia_test_level_1__{t[0]}_{m[0]}", gaia_test_tasks[0], t[1], m[1])
-            create_jsonl(f"gaia_test_level_2__{t[0]}_{m[0]}", gaia_test_tasks[1], t[1], m[1])
-            create_jsonl(f"gaia_test_level_3__{t[0]}_{m[0]}", gaia_test_tasks[2], t[1], m[1])
+            create_jsonl(
+                f"gaia_validation_level_1__{t[0]}_{m[0]}",
+                gaia_validation_tasks[0],
+                t[1],
+                m[1],
+            )
+            create_jsonl(
+                f"gaia_validation_level_2__{t[0]}_{m[0]}",
+                gaia_validation_tasks[1],
+                t[1],
+                m[1],
+            )
+            create_jsonl(
+                f"gaia_validation_level_3__{t[0]}_{m[0]}",
+                gaia_validation_tasks[2],
+                t[1],
+                m[1],
+            )
+            create_jsonl(
+                f"gaia_test_level_1__{t[0]}_{m[0]}", gaia_test_tasks[0], t[1], m[1]
+            )
+            create_jsonl(
+                f"gaia_test_level_2__{t[0]}_{m[0]}", gaia_test_tasks[1], t[1], m[1]
+            )
+            create_jsonl(
+                f"gaia_test_level_3__{t[0]}_{m[0]}", gaia_test_tasks[2], t[1], m[1]
+            )

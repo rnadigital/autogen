@@ -9,7 +9,7 @@ from autogen.code_utils import (
 )
 
 try:
-    import openai
+    pass
 except ImportError:
     skip = True
 else:
@@ -68,7 +68,9 @@ def test_agent_setup_with_env_variable_false_and_docker_running():
     restore_autogen_env_var(current_env_value)
 
 
-@pytest.mark.skipif(skip or (not docker_running()), reason="openai not installed OR docker not running")
+@pytest.mark.skipif(
+    skip or (not docker_running()), reason="openai not installed OR docker not running"
+)
 def test_agent_setup_with_default_and_docker_running():
     user_proxy = UserProxyAgent(
         name="test_agent",
@@ -78,7 +80,9 @@ def test_agent_setup_with_default_and_docker_running():
     assert user_proxy._code_execution_config["use_docker"] is True
 
 
-@pytest.mark.skipif(skip or (docker_running()), reason="openai not installed OR docker running")
+@pytest.mark.skipif(
+    skip or (docker_running()), reason="openai not installed OR docker running"
+)
 def test_raises_error_agent_setup_with_default_and_docker_not_running():
     with pytest.raises(RuntimeError):
         UserProxyAgent(
@@ -87,7 +91,9 @@ def test_raises_error_agent_setup_with_default_and_docker_not_running():
         )
 
 
-@pytest.mark.skipif(skip or (docker_running()), reason="openai not installed OR docker running")
+@pytest.mark.skipif(
+    skip or (docker_running()), reason="openai not installed OR docker running"
+)
 def test_raises_error_agent_setup_with_env_variable_true_and_docker_not_running():
     current_env_value = get_current_autogen_env_var()
 
@@ -102,7 +108,9 @@ def test_raises_error_agent_setup_with_env_variable_true_and_docker_not_running(
     restore_autogen_env_var(current_env_value)
 
 
-@pytest.mark.skipif(skip or (not docker_running()), reason="openai not installed OR docker not running")
+@pytest.mark.skipif(
+    skip or (not docker_running()), reason="openai not installed OR docker not running"
+)
 def test_agent_setup_with_env_variable_true_and_docker_running():
     current_env_value = get_current_autogen_env_var()
 

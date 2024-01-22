@@ -1,7 +1,11 @@
 from typing import Callable, Dict, List, Optional
 
 from autogen.agentchat.contrib.retrieve_user_proxy_agent import RetrieveUserProxyAgent
-from autogen.retrieve_utils import get_files_from_dir, split_files_to_chunks, TEXT_FORMATS
+from autogen.retrieve_utils import (
+    get_files_from_dir,
+    split_files_to_chunks,
+    TEXT_FORMATS,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -9,9 +13,10 @@ logger = logging.getLogger(__name__)
 try:
     from qdrant_client import QdrantClient, models
     from qdrant_client.fastembed_common import QueryResponse
-    import fastembed
 except ImportError as e:
-    logging.fatal("Failed to import qdrant_client with fastembed. Try running 'pip install qdrant_client[fastembed]'")
+    logging.fatal(
+        "Failed to import qdrant_client with fastembed. Try running 'pip install qdrant_client[fastembed]'"
+    )
     raise e
 
 
@@ -89,13 +94,19 @@ class QdrantRetrieveUserProxyAgent(RetrieveUserProxyAgent):
              **kwargs (dict): other kwargs in [UserProxyAgent](../user_proxy_agent#__init__).
 
         """
-        super().__init__(name, human_input_mode, is_termination_msg, retrieve_config, **kwargs)
+        super().__init__(
+            name, human_input_mode, is_termination_msg, retrieve_config, **kwargs
+        )
         self._client = self._retrieve_config.get("client", QdrantClient(":memory:"))
-        self._embedding_model = self._retrieve_config.get("embedding_model", "BAAI/bge-small-en-v1.5")
+        self._embedding_model = self._retrieve_config.get(
+            "embedding_model", "BAAI/bge-small-en-v1.5"
+        )
         # Uses all available CPU cores to encode data when set to 0
         self._parallel = self._retrieve_config.get("parallel", 0)
         self._on_disk = self._retrieve_config.get("on_disk", False)
-        self._quantization_config = self._retrieve_config.get("quantization_config", None)
+        self._quantization_config = self._retrieve_config.get(
+            "quantization_config", None
+        )
         self._hnsw_config = self._retrieve_config.get("hnsw_config", None)
         self._payload_indexing = self._retrieve_config.get("payload_indexing", False)
 
@@ -196,7 +207,10 @@ def create_qdrant_from_dir(
         )
     else:
         chunks = split_files_to_chunks(
-            get_files_from_dir(dir_path, custom_text_types, recursive), max_tokens, chunk_mode, must_break_at_empty_line
+            get_files_from_dir(dir_path, custom_text_types, recursive),
+            max_tokens,
+            chunk_mode,
+            must_break_at_empty_line,
         )
     logger.info(f"Found {len(chunks)} chunks.")
 
@@ -208,7 +222,9 @@ def create_qdrant_from_dir(
         client.create_collection(
             collection_name=collection_name,
             vectors_config=client.get_fastembed_vector_params(
-                on_disk=on_disk, quantization_config=quantization_config, hnsw_config=hnsw_config
+                on_disk=on_disk,
+                quantization_config=quantization_config,
+                hnsw_config=hnsw_config,
             ),
         )
         collection = client.get_collection(collection_name=collection_name)

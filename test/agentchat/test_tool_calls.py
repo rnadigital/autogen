@@ -9,7 +9,7 @@ from test_assistant_agent import KEY_LOC, OAI_CONFIG_LIST
 from autogen.oai.client import TOOL_ENABLED
 
 try:
-    from openai import OpenAI
+    pass
 except ImportError:
     skip_openai = True
 else:
@@ -17,7 +17,10 @@ else:
     from conftest import skip_openai
 
 
-@pytest.mark.skipif(skip_openai or not TOOL_ENABLED, reason="openai>=1.1.0 not installed or requested to skip")
+@pytest.mark.skipif(
+    skip_openai or not TOOL_ENABLED,
+    reason="openai>=1.1.0 not installed or requested to skip",
+)
 def test_eval_math_responses():
     config_list = autogen.config_list_from_models(
         KEY_LOC, model_list=["gpt-4-0613", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k"]
@@ -72,7 +75,10 @@ def test_eval_math_responses():
     print(eval_math_responses(**arguments))
 
 
-@pytest.mark.skipif(skip_openai or not TOOL_ENABLED, reason="openai>=1.1.0 not installed or requested to skip")
+@pytest.mark.skipif(
+    skip_openai or not TOOL_ENABLED,
+    reason="openai>=1.1.0 not installed or requested to skip",
+)
 def test_eval_math_responses_api_style_function():
     config_list = autogen.config_list_from_models(
         KEY_LOC,
@@ -132,7 +138,14 @@ def test_update_tool():
     config_list_gpt4 = autogen.config_list_from_json(
         OAI_CONFIG_LIST,
         filter_dict={
-            "model": ["gpt-4", "gpt-4-0314", "gpt4", "gpt-4-32k", "gpt-4-32k-0314", "gpt-4-32k-v0314"],
+            "model": [
+                "gpt-4",
+                "gpt-4-0314",
+                "gpt4",
+                "gpt-4-32k",
+                "gpt-4-32k-0314",
+                "gpt-4-32k-v0314",
+            ],
         },
         file_location=KEY_LOC,
     )
@@ -217,14 +230,19 @@ def test_multi_tool_call():
                 {
                     "id": "tool_1",
                     "type": "function",
-                    "function": {"name": "echo", "arguments": json.JSONEncoder().encode({"str": "hello world"})},
+                    "function": {
+                        "name": "echo",
+                        "arguments": json.JSONEncoder().encode({"str": "hello world"}),
+                    },
                 },
                 {
                     "id": "tool_2",
                     "type": "function",
                     "function": {
                         "name": "echo",
-                        "arguments": json.JSONEncoder().encode({"str": "goodbye and thanks for all the fish"}),
+                        "arguments": json.JSONEncoder().encode(
+                            {"str": "goodbye and thanks for all the fish"}
+                        ),
                     },
                 },
                 {
@@ -232,7 +250,9 @@ def test_multi_tool_call():
                     "type": "function",
                     "function": {
                         "name": "multi_tool_call_echo",  # normalized "multi_tool_call.echo"
-                        "arguments": json.JSONEncoder().encode({"str": "goodbye and thanks for all the fish"}),
+                        "arguments": json.JSONEncoder().encode(
+                            {"str": "goodbye and thanks for all the fish"}
+                        ),
                     },
                 },
             ],
@@ -315,14 +335,19 @@ async def test_async_multi_tool_call():
                 {
                     "id": "tool_1",
                     "type": "function",
-                    "function": {"name": "a_echo", "arguments": json.JSONEncoder().encode({"str": "hello world"})},
+                    "function": {
+                        "name": "a_echo",
+                        "arguments": json.JSONEncoder().encode({"str": "hello world"}),
+                    },
                 },
                 {
                     "id": "tool_2",
                     "type": "function",
                     "function": {
                         "name": "echo",
-                        "arguments": json.JSONEncoder().encode({"str": "goodbye and thanks for all the fish"}),
+                        "arguments": json.JSONEncoder().encode(
+                            {"str": "goodbye and thanks for all the fish"}
+                        ),
                     },
                 },
                 {
@@ -330,7 +355,9 @@ async def test_async_multi_tool_call():
                     "type": "function",
                     "function": {
                         "name": "multi_tool_call_echo",  # normalized "multi_tool_call.echo"
-                        "arguments": json.JSONEncoder().encode({"str": "goodbye and thanks for all the fish"}),
+                        "arguments": json.JSONEncoder().encode(
+                            {"str": "goodbye and thanks for all the fish"}
+                        ),
                     },
                 },
             ],

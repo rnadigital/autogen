@@ -1,6 +1,3 @@
-import os
-import json
-import base64
 import autogen
 import testbed_utils
 
@@ -112,4 +109,6 @@ run_tests(__ENTRY_POINT__)
 )
 
 ##############################
-testbed_utils.finalize(agents=[assistant, user_proxy, guardrails_agent, distractor_agent, manager])
+testbed_utils.finalize(
+    agents=[assistant, user_proxy, guardrails_agent, distractor_agent, manager]
+)

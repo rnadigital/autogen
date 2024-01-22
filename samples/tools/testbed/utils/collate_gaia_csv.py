@@ -1,7 +1,5 @@
 import os
-import json
 import re
-import sys
 import argparse
 
 
@@ -100,7 +98,12 @@ if __name__ == "__main__":
     # Path to the default results directory
     # (relative to this script, up on directory, then into the results folder)
     default_results_dir = os.path.realpath(
-        os.path.join(script_dir, os.path.pardir, "results", "gaia_validation_level_1__two_agents_gpt4")
+        os.path.join(
+            script_dir,
+            os.path.pardir,
+            "results",
+            "gaia_validation_level_1__two_agents_gpt4",
+        )
     )
 
     parser = argparse.ArgumentParser(

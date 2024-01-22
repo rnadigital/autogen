@@ -17,14 +17,13 @@ try:
         QdrantRetrieveUserProxyAgent,
         query_qdrant,
     )
-    import fastembed
 
     QDRANT_INSTALLED = True
 except ImportError:
     QDRANT_INSTALLED = False
 
 try:
-    import openai
+    pass
 except ImportError:
     skip = True
 else:
@@ -78,9 +77,13 @@ def test_retrievechat():
 @pytest.mark.skipif(not QDRANT_INSTALLED, reason="qdrant_client is not installed")
 def test_qdrant_filter():
     client = QdrantClient(":memory:")
-    create_qdrant_from_dir(dir_path="./website/docs", client=client, collection_name="autogen-docs")
+    create_qdrant_from_dir(
+        dir_path="./website/docs", client=client, collection_name="autogen-docs"
+    )
     results = query_qdrant(
-        query_texts=["How can I use AutoGen UserProxyAgent and AssistantAgent to do code generation?"],
+        query_texts=[
+            "How can I use AutoGen UserProxyAgent and AssistantAgent to do code generation?"
+        ],
         n_results=4,
         client=client,
         collection_name="autogen-docs",
@@ -99,7 +102,9 @@ def test_qdrant_search():
 
     # Perform a semantic search without any filter
     results = query_qdrant(["autogen"], client=client)
-    assert isinstance(results, dict) and any("autogen" in res[0].lower() for res in results.get("documents", []))
+    assert isinstance(results, dict) and any(
+        "autogen" in res[0].lower() for res in results.get("documents", [])
+    )
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ import io
 from contextlib import redirect_stdout
 
 try:
-    import openai
+    pass
 except ImportError:
     skip = True
 else:
@@ -48,15 +48,30 @@ def test_gathering():
 
     assistant1.client.total_usage_summary = {
         "total_cost": 0.1,
-        "gpt-35-turbo": {"cost": 0.1, "prompt_tokens": 100, "completion_tokens": 200, "total_tokens": 300},
+        "gpt-35-turbo": {
+            "cost": 0.1,
+            "prompt_tokens": 100,
+            "completion_tokens": 200,
+            "total_tokens": 300,
+        },
     }
     assistant2.client.total_usage_summary = {
         "total_cost": 0.2,
-        "gpt-35-turbo": {"cost": 0.2, "prompt_tokens": 100, "completion_tokens": 200, "total_tokens": 300},
+        "gpt-35-turbo": {
+            "cost": 0.2,
+            "prompt_tokens": 100,
+            "completion_tokens": 200,
+            "total_tokens": 300,
+        },
     }
     assistant3.client.total_usage_summary = {
         "total_cost": 0.3,
-        "gpt-4": {"cost": 0.3, "prompt_tokens": 100, "completion_tokens": 200, "total_tokens": 300},
+        "gpt-4": {
+            "cost": 0.3,
+            "prompt_tokens": 100,
+            "completion_tokens": 200,
+            "total_tokens": 300,
+        },
     }
 
     total_usage, _ = gather_usage_summary([assistant1, assistant2, assistant3])
@@ -127,11 +142,23 @@ def test_agent_usage():
     assert "All completions are non-cached:" in output
 
     # test get
-    print("Actual usage summary (excluding completion from cache):", assistant.get_actual_usage())
-    print("Total usage summary (including completion from cache):", assistant.get_total_usage())
+    print(
+        "Actual usage summary (excluding completion from cache):",
+        assistant.get_actual_usage(),
+    )
+    print(
+        "Total usage summary (including completion from cache):",
+        assistant.get_total_usage(),
+    )
 
-    print("Actual usage summary (excluding completion from cache):", ai_user_proxy.get_actual_usage())
-    print("Total usage summary (including completion from cache):", ai_user_proxy.get_total_usage())
+    print(
+        "Actual usage summary (excluding completion from cache):",
+        ai_user_proxy.get_actual_usage(),
+    )
+    print(
+        "Total usage summary (including completion from cache):",
+        ai_user_proxy.get_total_usage(),
+    )
 
 
 if __name__ == "__main__":

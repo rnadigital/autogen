@@ -10,16 +10,26 @@ from typing import Optional, List, Dict, Tuple
 def _config_check(config: Dict):
     # check config loading
     assert config.get("coding", None) is not None, 'Missing "coding" in your config.'
-    assert config.get("default_llm_config", None) is not None, 'Missing "default_llm_config" in your config.'
-    assert config.get("code_execution_config", None) is not None, 'Missing "code_execution_config" in your config.'
+    assert (
+        config.get("default_llm_config", None) is not None
+    ), 'Missing "default_llm_config" in your config.'
+    assert (
+        config.get("code_execution_config", None) is not None
+    ), 'Missing "code_execution_config" in your config.'
 
     for agent_config in config["agent_configs"]:
-        assert agent_config.get("name", None) is not None, 'Missing agent "name" in your agent_configs.'
-        assert agent_config.get("model", None) is not None, 'Missing agent "model" in your agent_configs.'
+        assert (
+            agent_config.get("name", None) is not None
+        ), 'Missing agent "name" in your agent_configs.'
+        assert (
+            agent_config.get("model", None) is not None
+        ), 'Missing agent "model" in your agent_configs.'
         assert (
             agent_config.get("system_message", None) is not None
         ), 'Missing agent "system_message" in your agent_configs.'
-        assert agent_config.get("description", None) is not None, 'Missing agent "description" in your agent_configs.'
+        assert (
+            agent_config.get("description", None) is not None
+        ), 'Missing agent "description" in your agent_configs.'
 
 
 class AgentBuilder:
@@ -283,7 +293,11 @@ output after executing the code) and provide a corrected answer or code.
 
         current_config = llm_config.copy()
         current_config.update(
-            {"config_list": config_list, "model": model_name_or_hf_repo, "max_tokens": self.max_tokens}
+            {
+                "config_list": config_list,
+                "model": model_name_or_hf_repo,
+                "max_tokens": self.max_tokens,
+            }
         )
         if use_oai_assistant:
             from autogen.agentchat.contrib.gpt_assistant_agent import GPTAssistantAgent
@@ -386,14 +400,19 @@ output after executing the code) and provide a corrected answer or code.
                 messages=[
                     {
                         "role": "user",
-                        "content": self.AGENT_NAME_PROMPT.format(task=building_task, max_agents=self.max_agents),
+                        "content": self.AGENT_NAME_PROMPT.format(
+                            task=building_task, max_agents=self.max_agents
+                        ),
                     }
                 ]
             )
             .choices[0]
             .message.content
         )
-        agent_name_list = [agent_name.strip().replace(" ", "_") for agent_name in resp_agent_name.split(",")]
+        agent_name_list = [
+            agent_name.strip().replace(" ", "_")
+            for agent_name in resp_agent_name.split(",")
+        ]
         print(f"{agent_name_list} are generated.")
 
         print("==> Generating system message...")
@@ -427,7 +446,9 @@ output after executing the code) and provide a corrected answer or code.
                     messages=[
                         {
                             "role": "user",
-                            "content": self.AGENT_DESCRIPTION_PROMPT.format(position=name),
+                            "content": self.AGENT_DESCRIPTION_PROMPT.format(
+                                position=name
+                            ),
                         }
                     ]
                 )
@@ -436,15 +457,27 @@ output after executing the code) and provide a corrected answer or code.
             )
             agent_description_list.append(resp_agent_description)
 
-        for name, sys_msg, description in list(zip(agent_name_list, agent_sys_msg_list, agent_description_list)):
+        for name, sys_msg, description in list(
+            zip(agent_name_list, agent_sys_msg_list, agent_description_list)
+        ):
             agent_configs.append(
-                {"name": name, "model": self.agent_model, "system_message": sys_msg, "description": description}
+                {
+                    "name": name,
+                    "model": self.agent_model,
+                    "system_message": sys_msg,
+                    "description": description,
+                }
             )
 
         if coding is None:
             resp = (
                 build_manager.create(
-                    messages=[{"role": "user", "content": self.CODING_PROMPT.format(task=building_task)}]
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": self.CODING_PROMPT.format(task=building_task),
+                        }
+                    ]
                 )
                 .choices[0]
                 .message.content
@@ -530,16 +563,20 @@ output after executing the code) and provide a corrected answer or code.
             chroma_client = chromadb.Client()
             collection = chroma_client.create_collection(
                 name="agent_list",
-                embedding_function=embedding_functions.SentenceTransformerEmbeddingFunction(model_name=embedding_model),
+                embedding_function=embedding_functions.SentenceTransformerEmbeddingFunction(
+                    model_name=embedding_model
+                ),
             )
             collection.add(
                 documents=[agent["profile"] for agent in agent_library],
-                metadatas=[{"source": "agent_profile"} for _ in range(len(agent_library))],
+                metadatas=[
+                    {"source": "agent_profile"} for _ in range(len(agent_library))
+                ],
                 ids=[f"agent_{i}" for i in range(len(agent_library))],
             )
-            agent_profile_list = collection.query(query_texts=[building_task], n_results=self.max_agents)["documents"][
-                0
-            ]
+            agent_profile_list = collection.query(
+                query_texts=[building_task], n_results=self.max_agents
+            )["documents"][0]
 
             # search name from library
             agent_name_list = []
@@ -561,7 +598,9 @@ output after executing the code) and provide a corrected answer or code.
                         {
                             "role": "user",
                             "content": self.AGENT_SEARCHING_PROMPT.format(
-                                task=building_task, agent_list="".join(agent_profiles), max_agents=self.max_agents
+                                task=building_task,
+                                agent_list="".join(agent_profiles),
+                                max_agents=self.max_agents,
                             ),
                         }
                     ]
@@ -569,7 +608,10 @@ output after executing the code) and provide a corrected answer or code.
                 .choices[0]
                 .message.content
             )
-            agent_name_list = [agent_name.strip().replace(" ", "_") for agent_name in resp_agent_name.split(",")]
+            agent_name_list = [
+                agent_name.strip().replace(" ", "_")
+                for agent_name in resp_agent_name.split(",")
+            ]
 
             # search profile from library
             agent_profile_list = []
@@ -603,15 +645,27 @@ output after executing the code) and provide a corrected answer or code.
             )
             agent_sys_msg_list.append(resp_agent_sys_msg)
 
-        for name, sys_msg, description in list(zip(agent_name_list, agent_sys_msg_list, agent_profile_list)):
+        for name, sys_msg, description in list(
+            zip(agent_name_list, agent_sys_msg_list, agent_profile_list)
+        ):
             agent_configs.append(
-                {"name": name, "model": self.agent_model, "system_message": sys_msg, "description": description}
+                {
+                    "name": name,
+                    "model": self.agent_model,
+                    "system_message": sys_msg,
+                    "description": description,
+                }
             )
 
         if coding is None:
             resp = (
                 build_manager.create(
-                    messages=[{"role": "user", "content": self.CODING_PROMPT.format(task=building_task)}]
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": self.CODING_PROMPT.format(task=building_task),
+                        }
+                    ]
                 )
                 .choices[0]
                 .message.content
@@ -660,7 +714,9 @@ output after executing the code) and provide a corrected answer or code.
                 use_oai_assistant=use_oai_assistant,
                 **kwargs,
             )
-        agent_list = [agent_config[0] for agent_config in self.agent_procs_assign.values()]
+        agent_list = [
+            agent_config[0] for agent_config in self.agent_procs_assign.values()
+        ]
 
         if coding is True:
             print("Adding user console proxy...")

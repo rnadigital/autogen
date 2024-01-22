@@ -1,7 +1,6 @@
-from autogen import oai
 from autogen.agentchat.agent import Agent
 from autogen.agentchat.assistant_agent import ConversableAgent
-from typing import Callable, Dict, Optional, Union, List, Tuple, Any
+from typing import Dict, Optional, Union, List, Tuple, Any
 
 system_message = """You are an expert in text analysis.
 The user will give you TEXT to analyze.
@@ -50,7 +49,9 @@ class TextAnalyzerAgent(ConversableAgent):
         Assumes exactly two messages containing the text to analyze and the analysis instructions.
         See Teachability.analyze for an example of how to use this method."""
         if self.llm_config is False:
-            raise ValueError("TextAnalyzerAgent requires self.llm_config to be set in its base class.")
+            raise ValueError(
+                "TextAnalyzerAgent requires self.llm_config to be set in its base class."
+            )
         if messages is None:
             messages = self._oai_messages[sender]  # In case of a direct call.
         assert len(messages) == 2
@@ -67,4 +68,6 @@ class TextAnalyzerAgent(ConversableAgent):
             [analysis_instructions, text_to_analyze, analysis_instructions]
         )  # Repeat the instructions.
         # Generate and return the analysis string.
-        return self.generate_oai_reply([{"role": "user", "content": msg_text}], None, None)[1]
+        return self.generate_oai_reply(
+            [{"role": "user", "content": msg_text}], None, None
+        )[1]

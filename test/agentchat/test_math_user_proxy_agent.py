@@ -13,7 +13,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from conftest import skip_openai  # noqa: E402
 
 try:
-    from openai import OpenAI
+    pass
 except ImportError:
     skip = True
 else:
@@ -34,7 +34,13 @@ def test_math_user_proxy_agent():
         OAI_CONFIG_LIST,
         file_location=KEY_LOC,
         filter_dict={
-            "model": ["gpt-4", "gpt4", "gpt-4-32k", "gpt-4-32k-0314", "gpt-4-32k-v0314"],
+            "model": [
+                "gpt-4",
+                "gpt4",
+                "gpt-4-32k",
+                "gpt-4-32k-0314",
+                "gpt-4-32k-v0314",
+            ],
         },
     )
     assistant = AssistantAgent(
@@ -82,7 +88,10 @@ def test_execute_one_python_code():
 
     # no output found 1
     code = "x=3"
-    assert mathproxyagent.execute_one_python_code(code)[0] == "No output found. Make sure you print the results."
+    assert (
+        mathproxyagent.execute_one_python_code(code)[0]
+        == "No output found. Make sure you print the results."
+    )
 
     # no output found 2
     code = "if 4 > 5:\n\tprint('True')"

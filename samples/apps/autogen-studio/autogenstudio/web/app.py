@@ -45,8 +45,14 @@ api = FastAPI(root_path="/api")
 # mount an api route such that the main route serves the ui and the /api
 app.mount("/api", api)
 
-app.mount("/", StaticFiles(directory=folders["static_folder_root"], html=True), name="ui")
-api.mount("/files", StaticFiles(directory=folders["files_static_root"], html=True), name="files")
+app.mount(
+    "/", StaticFiles(directory=folders["static_folder_root"], html=True), name="ui"
+)
+api.mount(
+    "/files",
+    StaticFiles(directory=folders["files_static_root"], html=True),
+    name="files",
+)
 
 
 db_path = os.path.join(root_file_path, "database.sqlite")
@@ -57,11 +63,15 @@ chatmanager = AutoGenChatManager()  # manage calls to autogen
 @api.post("/messages")
 async def add_message(req: ChatWebRequestModel):
     message = Message(**req.message.dict())
-    user_history = dbutils.get_messages(user_id=message.user_id, session_id=req.message.session_id, dbmanager=dbmanager)
+    user_history = dbutils.get_messages(
+        user_id=message.user_id, session_id=req.message.session_id, dbmanager=dbmanager
+    )
 
     # save incoming message to db
     dbutils.create_message(message=message, dbmanager=dbmanager)
-    user_dir = os.path.join(folders["files_static_root"], "user", md5_hash(message.user_id))
+    user_dir = os.path.join(
+        folders["files_static_root"], "user", md5_hash(message.user_id)
+    )
     os.makedirs(user_dir, exist_ok=True)
 
     try:
@@ -93,7 +103,9 @@ async def get_messages(user_id: str = None, session_id: str = None):
     if user_id is None:
         raise HTTPException(status_code=400, detail="user_id is required")
     try:
-        user_history = dbutils.get_messages(user_id=user_id, session_id=session_id, dbmanager=dbmanager)
+        user_history = dbutils.get_messages(
+            user_id=user_id, session_id=session_id, dbmanager=dbmanager
+        )
 
         return {
             "status": True,
@@ -153,8 +165,12 @@ async def create_user_session(req: DBWebRequestModel):
     # print(req.session, "**********" )
 
     try:
-        session = Session(user_id=req.session.user_id, flow_config=req.session.flow_config)
-        user_sessions = dbutils.create_session(user_id=req.user_id, session=session, dbmanager=dbmanager)
+        session = Session(
+            user_id=req.session.user_id, flow_config=req.session.flow_config
+        )
+        user_sessions = dbutils.create_session(
+            user_id=req.user_id, session=session, dbmanager=dbmanager
+        )
         return {
             "status": True,
             "message": "Session created successfully",
@@ -173,7 +189,9 @@ async def publish_user_session_to_gallery(req: DBWebRequestModel):
     """Create a new session for a user"""
 
     try:
-        gallery_item = dbutils.create_gallery(req.session, tags=req.tags, dbmanager=dbmanager)
+        gallery_item = dbutils.create_gallery(
+            req.session, tags=req.tags, dbmanager=dbmanager
+        )
         return {
             "status": True,
             "message": "Session successfully published",
@@ -212,7 +230,10 @@ async def remove_message(req: DeleteMessageWebRequestModel):
 
     try:
         messages = dbutils.delete_message(
-            user_id=req.user_id, msg_id=req.msg_id, session_id=req.session_id, dbmanager=dbmanager
+            user_id=req.user_id,
+            msg_id=req.msg_id,
+            session_id=req.session_id,
+            dbmanager=dbmanager,
         )
         return {
             "status": True,

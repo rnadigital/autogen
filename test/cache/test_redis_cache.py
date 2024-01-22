@@ -54,7 +54,9 @@ class TestRedisCache(unittest.TestCase):
         serialized_value = pickle.dumps(value)
         cache = RedisCache(self.seed, self.redis_url)
         cache.set(key, value)
-        cache.cache.set.assert_called_with(f"autogen:{self.seed}:{key}", serialized_value)
+        cache.cache.set.assert_called_with(
+            f"autogen:{self.seed}:{key}", serialized_value
+        )
 
     @pytest.mark.skipif(skip_redis_tests, reason="redis not installed")
     @patch("autogen.cache.redis_cache.redis.Redis.from_url", return_value=MagicMock())

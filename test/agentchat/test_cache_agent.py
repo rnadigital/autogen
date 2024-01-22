@@ -11,21 +11,23 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from conftest import skip_openai, skip_redis  # noqa: E402
 
 try:
-    from openai import OpenAI
+    pass
 except ImportError:
     skip_openai_tests = True
 else:
     skip_openai_tests = False or skip_openai
 
 try:
-    import redis
+    pass
 except ImportError:
     skip_redis_tests = True
 else:
     skip_redis_tests = False or skip_redis
 
 
-@pytest.mark.skipif(skip_openai_tests, reason="openai not installed OR requested to skip")
+@pytest.mark.skipif(
+    skip_openai_tests, reason="openai not installed OR requested to skip"
+)
 def test_legacy_disk_cache():
     random_cache_seed = int.from_bytes(os.urandom(2), "big")
     start_time = time.time()
@@ -45,7 +47,10 @@ def test_legacy_disk_cache():
     assert duration_with_warm_cache < duration_with_cold_cache
 
 
-@pytest.mark.skipif(skip_openai_tests or skip_redis_tests, reason="redis not installed OR requested to skip")
+@pytest.mark.skipif(
+    skip_openai_tests or skip_redis_tests,
+    reason="redis not installed OR requested to skip",
+)
 def test_redis_cache():
     random_cache_seed = int.from_bytes(os.urandom(2), "big")
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -76,7 +81,9 @@ def test_redis_cache():
         assert duration_with_warm_cache < duration_with_cold_cache
 
 
-@pytest.mark.skipif(skip_openai_tests, reason="openai not installed OR requested to skip")
+@pytest.mark.skipif(
+    skip_openai_tests, reason="openai not installed OR requested to skip"
+)
 def test_disk_cache():
     random_cache_seed = int.from_bytes(os.urandom(2), "big")
     start_time = time.time()
@@ -106,7 +113,9 @@ def test_disk_cache():
         assert duration_with_warm_cache < duration_with_cold_cache
 
 
-def run_conversation(cache_seed, human_input_mode="NEVER", max_consecutive_auto_reply=5, cache=None):
+def run_conversation(
+    cache_seed, human_input_mode="NEVER", max_consecutive_auto_reply=5, cache=None
+):
     KEY_LOC = "notebook"
     OAI_CONFIG_LIST = "OAI_CONFIG_LIST"
     here = os.path.abspath(os.path.dirname(__file__))
@@ -138,7 +147,9 @@ def run_conversation(cache_seed, human_input_mode="NEVER", max_consecutive_auto_
     user = UserProxyAgent(
         "user",
         human_input_mode=human_input_mode,
-        is_termination_msg=lambda x: x.get("content", "").rstrip().endswith("TERMINATE"),
+        is_termination_msg=lambda x: x.get("content", "")
+        .rstrip()
+        .endswith("TERMINATE"),
         max_consecutive_auto_reply=max_consecutive_auto_reply,
         code_execution_config={
             "work_dir": f"{here}/test_agent_scripts",
@@ -154,7 +165,11 @@ def run_conversation(cache_seed, human_input_mode="NEVER", max_consecutive_auto_
 
     user.initiate_chat(assistant, message="TERMINATE", cache=cache)
     # should terminate without sending any message
-    assert assistant.last_message()["content"] == assistant.last_message(user)["content"] == "TERMINATE"
+    assert (
+        assistant.last_message()["content"]
+        == assistant.last_message(user)["content"]
+        == "TERMINATE"
+    )
     coding_task = "Print hello world to a file called hello.txt"
 
     # track how long this takes
@@ -162,7 +177,9 @@ def run_conversation(cache_seed, human_input_mode="NEVER", max_consecutive_auto_
     return user.chat_messages[list(user.chat_messages.keys())[-0]]
 
 
-def run_groupchat_conversation(cache, human_input_mode="NEVER", max_consecutive_auto_reply=5):
+def run_groupchat_conversation(
+    cache, human_input_mode="NEVER", max_consecutive_auto_reply=5
+):
     KEY_LOC = "notebook"
     OAI_CONFIG_LIST = "OAI_CONFIG_LIST"
     here = os.path.abspath(os.path.dirname(__file__))
@@ -200,7 +217,9 @@ def run_groupchat_conversation(cache, human_input_mode="NEVER", max_consecutive_
     user = UserProxyAgent(
         "user",
         human_input_mode=human_input_mode,
-        is_termination_msg=lambda x: x.get("content", "").rstrip().endswith("TERMINATE"),
+        is_termination_msg=lambda x: x.get("content", "")
+        .rstrip()
+        .endswith("TERMINATE"),
         max_consecutive_auto_reply=max_consecutive_auto_reply,
         code_execution_config={
             "work_dir": f"{here}/test_agent_scripts",

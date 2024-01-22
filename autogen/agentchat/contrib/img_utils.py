@@ -1,8 +1,7 @@
 import base64
-import mimetypes
 import re
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import List, Tuple, Union
 
 import requests
 from PIL import Image
@@ -26,7 +25,9 @@ def get_image_data(image_file: str, use_b64=True) -> bytes:
         return content
 
 
-def llava_formatter(prompt: str, order_image_tokens: bool = False) -> Tuple[str, List[str]]:
+def llava_formatter(
+    prompt: str, order_image_tokens: bool = False
+) -> Tuple[str, List[str]]:
     """
     Formats the input prompt by replacing image tags and returns the new prompt along with image locations.
 
@@ -56,7 +57,9 @@ def llava_formatter(prompt: str, order_image_tokens: bool = False) -> Tuple[str,
             img_data = get_image_data(image_location)
         except Exception as e:
             # Remove the token
-            print(f"Warning! Unable to load image from {image_location}, because of {e}")
+            print(
+                f"Warning! Unable to load image from {image_location}, because of {e}"
+            )
             new_prompt = new_prompt.replace(match.group(0), "", 1)
             continue
 
@@ -124,7 +127,12 @@ def gpt4v_formatter(prompt: str) -> List[Union[str, dict]]:
         output.append({"type": "text", "text": prompt[last_index : match.start()]})
 
         # Add image data to output list
-        output.append({"type": "image_url", "image_url": {"url": convert_base64_to_data_uri(img_data)}})
+        output.append(
+            {
+                "type": "image_url",
+                "image_url": {"url": convert_base64_to_data_uri(img_data)},
+            }
+        )
 
         last_index = match.end()
         image_count += 1
@@ -146,7 +154,8 @@ def extract_img_paths(paragraph: str) -> list:
     """
     # Regular expression to match image URLs and file paths
     img_path_pattern = re.compile(
-        r"\b(?:http[s]?://\S+\.(?:jpg|jpeg|png|gif|bmp)|\S+\.(?:jpg|jpeg|png|gif|bmp))\b", re.IGNORECASE
+        r"\b(?:http[s]?://\S+\.(?:jpg|jpeg|png|gif|bmp)|\S+\.(?:jpg|jpeg|png|gif|bmp))\b",
+        re.IGNORECASE,
     )
 
     # Find all matches in the paragraph

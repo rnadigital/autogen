@@ -73,7 +73,10 @@ def get_key(config: Dict[str, Any]) -> str:
 
 
 def get_config_list(
-    api_keys: List, base_urls: Optional[List] = None, api_type: Optional[str] = None, api_version: Optional[str] = None
+    api_keys: List,
+    base_urls: Optional[List] = None,
+    api_type: Optional[str] = None,
+    api_version: Optional[str] = None,
 ) -> List[Dict]:
     """Get a list of configs for OpenAI API client.
 
@@ -104,7 +107,9 @@ def get_config_list(
 
     """
     if base_urls is not None:
-        assert len(api_keys) == len(base_urls), "The length of api_keys must match the length of base_urls"
+        assert len(api_keys) == len(
+            base_urls
+        ), "The length of api_keys must match the length of base_urls"
     config_list = []
     for i, api_key in enumerate(api_keys):
         if not api_key.strip():
@@ -312,7 +317,9 @@ def config_list_from_models(
         exclude=exclude,
     )
     if model_list:
-        config_list = [{**config, "model": model} for model in model_list for config in config_list]
+        config_list = [
+            {**config, "model": model} for model in model_list for config in config_list
+        ]
     return config_list
 
 
@@ -413,7 +420,9 @@ def filter_config(config_list, filter_dict):
 
     def _satisfies(config_value, acceptable_values):
         if isinstance(config_value, list):
-            return bool(set(config_value) & set(acceptable_values))  # Non-empty intersection
+            return bool(
+                set(config_value) & set(acceptable_values)
+            )  # Non-empty intersection
         else:
             return config_value in acceptable_values
 
@@ -421,7 +430,9 @@ def filter_config(config_list, filter_dict):
         config_list = [
             config
             for config in config_list
-            if all(_satisfies(config.get(key), value) for key, value in filter_dict.items())
+            if all(
+                _satisfies(config.get(key), value) for key, value in filter_dict.items()
+            )
         ]
     return config_list
 
@@ -429,7 +440,9 @@ def filter_config(config_list, filter_dict):
 def config_list_from_json(
     env_or_file: str,
     file_location: Optional[str] = "",
-    filter_dict: Optional[Dict[str, Union[List[Union[str, None]], Set[Union[str, None]]]]] = None,
+    filter_dict: Optional[
+        Dict[str, Union[List[Union[str, None]], Set[Union[str, None]]]]
+    ] = None,
 ) -> List[Dict]:
     """
     Retrieves a list of API configurations from a JSON stored in an environment variable or a file.
@@ -489,7 +502,10 @@ def config_list_from_json(
 
 
 def get_config(
-    api_key: str, base_url: Optional[str] = None, api_type: Optional[str] = None, api_version: Optional[str] = None
+    api_key: str,
+    base_url: Optional[str] = None,
+    api_type: Optional[str] = None,
+    api_version: Optional[str] = None,
 ) -> Dict:
     """
     Constructs a configuration dictionary for a single model with the provided API configurations.
@@ -529,7 +545,9 @@ def get_config(
 
 
 def config_list_from_dotenv(
-    dotenv_file_path: Optional[str] = None, model_api_key_map: Optional[dict] = None, filter_dict: Optional[dict] = None
+    dotenv_file_path: Optional[str] = None,
+    model_api_key_map: Optional[dict] = None,
+    filter_dict: Optional[dict] = None,
 ) -> List[Dict[str, Union[str, Set[str]]]]:
     """
     Load API configurations from a specified .env file or environment variables and construct a list of configurations.
@@ -569,7 +587,9 @@ def config_list_from_dotenv(
     else:
         dotenv_path = find_dotenv()
         if not dotenv_path:
-            logging.warning("No .env file found. Loading configurations from environment variables.")
+            logging.warning(
+                "No .env file found. Loading configurations from environment variables."
+            )
         load_dotenv(dotenv_path)
 
     # Ensure the model_api_key_map is not None to prevent TypeErrors during key assignment.
@@ -592,10 +612,14 @@ def config_list_from_dotenv(
             config_dict = get_config(api_key=os.getenv(api_key_env_var))
         elif isinstance(config, dict):
             api_key = os.getenv(config.get("api_key_env_var", "OPENAI_API_KEY"))
-            config_without_key_var = {k: v for k, v in config.items() if k != "api_key_env_var"}
+            config_without_key_var = {
+                k: v for k, v in config.items() if k != "api_key_env_var"
+            }
             config_dict = get_config(api_key=api_key, **config_without_key_var)
         else:
-            logging.warning(f"Unsupported type {type(config)} for model {model} configuration")
+            logging.warning(
+                f"Unsupported type {type(config)} for model {model} configuration"
+            )
 
         if not config_dict["api_key"] or config_dict["api_key"].strip() == "":
             logging.warning(
@@ -615,7 +639,9 @@ def config_list_from_dotenv(
             temp.flush()
 
             # Assuming config_list_from_json is a valid function from your code
-            config_list = config_list_from_json(env_or_file=temp_name, filter_dict=filter_dict)
+            config_list = config_list_from_json(
+                env_or_file=temp_name, filter_dict=filter_dict
+            )
     finally:
         # The file is deleted after using its name (to prevent windows build from breaking)
         os.remove(temp_name)

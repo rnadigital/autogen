@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional, Tuple, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing_extensions import Annotated
 
 from autogen._pydantic import model_dump, model_dump_json, type2schema
@@ -12,7 +12,9 @@ def test_type2schema() -> None:
     assert type2schema(float) == {"type": "number"}
     assert type2schema(bool) == {"type": "boolean"}
     assert type2schema(None) == {"type": "null"}
-    assert type2schema(Optional[int]) == {"anyOf": [{"type": "integer"}, {"type": "null"}]}
+    assert type2schema(Optional[int]) == {
+        "anyOf": [{"type": "integer"}, {"type": "null"}]
+    }
     assert type2schema(List[int]) == {"items": {"type": "integer"}, "type": "array"}
     assert type2schema(Tuple[int, float, str]) == {
         "maxItems": 3,
@@ -20,9 +22,14 @@ def test_type2schema() -> None:
         "prefixItems": [{"type": "integer"}, {"type": "number"}, {"type": "string"}],
         "type": "array",
     }
-    assert type2schema(Dict[str, int]) == {"additionalProperties": {"type": "integer"}, "type": "object"}
+    assert type2schema(Dict[str, int]) == {
+        "additionalProperties": {"type": "integer"},
+        "type": "object",
+    }
     assert type2schema(Annotated[str, "some text"]) == {"type": "string"}
-    assert type2schema(Union[int, float]) == {"anyOf": [{"type": "integer"}, {"type": "number"}]}
+    assert type2schema(Union[int, float]) == {
+        "anyOf": [{"type": "integer"}, {"type": "number"}]
+    }
 
 
 def test_model_dump() -> None:

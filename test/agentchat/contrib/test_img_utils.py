@@ -1,6 +1,5 @@
 import base64
 import os
-import pdb
 import unittest
 from unittest.mock import patch
 
@@ -10,7 +9,12 @@ import requests
 try:
     from PIL import Image
 
-    from autogen.agentchat.contrib.img_utils import extract_img_paths, get_image_data, gpt4v_formatter, llava_formatter
+    from autogen.agentchat.contrib.img_utils import (
+        extract_img_paths,
+        get_image_data,
+        gpt4v_formatter,
+        llava_formatter,
+    )
 except ImportError:
     skip = True
 else:
@@ -38,7 +42,9 @@ class TestGetImageData(unittest.TestCase):
             mock_get.return_value = mock_response
 
             result = get_image_data("http://example.com/image.png")
-            self.assertEqual(result, base64.b64encode(b"fake image content").decode("utf-8"))
+            self.assertEqual(
+                result, base64.b64encode(b"fake image content").decode("utf-8")
+            )
 
     def test_base64_encoded_image(self):
         result = get_image_data(base64_encoded_image)
@@ -93,7 +99,10 @@ class TestLlavaFormater(unittest.TestCase):
         mock_get_image_data.return_value = raw_encoded_image
 
         prompt = "This is a test with an image <img http://example.com/image.png>."
-        expected_output = ("This is a test with an image <image 0>.", [raw_encoded_image])
+        expected_output = (
+            "This is a test with an image <image 0>.",
+            [raw_encoded_image],
+        )
         result = llava_formatter(prompt, order_image_tokens=True)
         self.assertEqual(result, expected_output)
 
@@ -134,9 +143,7 @@ class TestGpt4vFormatter(unittest.TestCase):
         # Mock the get_image_data function to return a fixed string.
         mock_get_image_data.return_value = raw_encoded_image
 
-        prompt = (
-            "This is a test with images <img http://example.com/image1.png> and <img http://example.com/image2.png>."
-        )
+        prompt = "This is a test with images <img http://example.com/image1.png> and <img http://example.com/image2.png>."
         expected_output = [
             {"type": "text", "text": "This is a test with images "},
             {"type": "image_url", "image_url": {"url": base64_encoded_image}},
@@ -163,10 +170,11 @@ class TestExtractImgPaths(unittest.TestCase):
         """
         Test the extract_img_paths function with a paragraph containing images.
         """
-        paragraph = (
-            "This is a test paragraph with images http://example.com/image1.jpg and http://example.com/image2.png."
-        )
-        expected_output = ["http://example.com/image1.jpg", "http://example.com/image2.png"]
+        paragraph = "This is a test paragraph with images http://example.com/image1.jpg and http://example.com/image2.png."
+        expected_output = [
+            "http://example.com/image1.jpg",
+            "http://example.com/image2.png",
+        ]
         result = extract_img_paths(paragraph)
         self.assertEqual(result, expected_output)
 
@@ -175,7 +183,10 @@ class TestExtractImgPaths(unittest.TestCase):
         Test the extract_img_paths function with mixed case image extensions.
         """
         paragraph = "Mixed case extensions http://example.com/image.JPG and http://example.com/image.Png."
-        expected_output = ["http://example.com/image.JPG", "http://example.com/image.Png"]
+        expected_output = [
+            "http://example.com/image.JPG",
+            "http://example.com/image.Png",
+        ]
         result = extract_img_paths(paragraph)
         self.assertEqual(result, expected_output)
 

@@ -10,19 +10,19 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from autogen.cache.cache import Cache
-from autogen.oai import completion
 
-from autogen.oai.openai_utils import DEFAULT_AZURE_API_VERSION, get_key, OAI_PRICE1K
+from autogen.oai.openai_utils import get_key, OAI_PRICE1K
 from autogen.token_count_utils import count_token
 from uuid import uuid4
 import redis
-from autogen._pydantic import model_dump
 
 TOOL_ENABLED = False
 try:
     import openai
 except ImportError:
-    ERROR: Optional[ImportError] = ImportError("Please install openai>=1 and diskcache to use autogen.OpenAIWrapper.")
+    ERROR: Optional[ImportError] = ImportError(
+        "Please install openai>=1 and diskcache to use autogen.OpenAIWrapper."
+    )
     OpenAI = object
     AzureOpenAI = object
 else:
@@ -59,6 +59,7 @@ NTH_CHUNK_CHECK = 5
 
 class StopGeneratingException(Exception):
     """Specific exception raised when stop generating was requested by user"""
+
     pass
 
 
@@ -82,7 +83,9 @@ class OpenAIWrapper:
     total_usage_summary: Optional[Dict[str, Any]] = None
     actual_usage_summary: Optional[Dict[str, Any]] = None
 
-    def __init__(self, *, config_list: Optional[List[Dict[str, Any]]] = None, **base_config: Any):
+    def __init__(
+        self, *, config_list: Optional[List[Dict[str, Any]]] = None, **base_config: Any
+    ):
         """
         Args:
             config_list: a list of config dicts to override the base_config.
@@ -116,14 +119,21 @@ class OpenAIWrapper:
         """
         openai_config, extra_kwargs = self._separate_openai_config(base_config)
         if type(config_list) is list and len(config_list) == 0:
-            logger.warning("openai client was provided with an empty config_list, which may not be intended.")
+            logger.warning(
+                "openai client was provided with an empty config_list, which may not be intended."
+            )
         if config_list:
-            config_list = [config.copy() for config in config_list]  # make a copy before modifying
+            config_list = [
+                config.copy() for config in config_list
+            ]  # make a copy before modifying
             self._clients: List[OpenAI] = [
                 self._client(config, openai_config) for config in config_list
             ]  # could modify the config
             self._config_list = [
-                {**extra_kwargs, **{k: v for k, v in config.items() if k not in self.openai_kwargs}}
+                {
+                    **extra_kwargs,
+                    **{k: v for k, v in config.items() if k not in self.openai_kwargs},
+                }
                 for config in config_list
             ]
         else:
@@ -132,19 +142,24 @@ class OpenAIWrapper:
 
         try:
             # TODO: make redis port an env?
-            self.redis_client: redis.Redis = redis.Redis(host=os.environ.get("REDIS_HOST"), port=6379,
-                                                         decode_responses=True)
+            self.redis_client: redis.Redis = redis.Redis(
+                host=os.environ.get("REDIS_HOST"), port=6379, decode_responses=True
+            )
         except Exception as e:
             logging.error(f"Failed to create self.redis_client: {e}")
             self.redis_client = None
 
-    def _separate_openai_config(self, config: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    def _separate_openai_config(
+        self, config: Dict[str, Any]
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """Separate the config into openai_config and extra_kwargs."""
         openai_config = {k: v for k, v in config.items() if k in self.openai_kwargs}
         extra_kwargs = {k: v for k, v in config.items() if k not in self.openai_kwargs}
         return openai_config, extra_kwargs
 
-    def _separate_create_config(self, config: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    def _separate_create_config(
+        self, config: Dict[str, Any]
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """Separate the config into create_config and extra_kwargs."""
         create_config = {k: v for k, v in config.items() if k not in self.extra_kwargs}
         extra_kwargs = {k: v for k, v in config.items() if k in self.extra_kwargs}
@@ -159,13 +174,22 @@ class OpenAIWrapper:
         "gpt-35-turbo" and define model "gpt-3.5-turbo" in the config the function will remove the dot
         from the name and create a client that connects to "gpt-35-turbo" Azure deployment.
         """
-        openai_config = {**openai_config, **{k: v for k, v in config.items() if k in self.openai_kwargs}}
+        openai_config = {
+            **openai_config,
+            **{k: v for k, v in config.items() if k in self.openai_kwargs},
+        }
         api_type = config.get("api_type")
         if api_type is not None and api_type.startswith("azure"):
-            openai_config["azure_deployment"] = openai_config.get("azure_deployment", config.get("model"))
+            openai_config["azure_deployment"] = openai_config.get(
+                "azure_deployment", config.get("model")
+            )
             if openai_config["azure_deployment"] is not None:
-                openai_config["azure_deployment"] = openai_config["azure_deployment"].replace(".", "")
-            openai_config["azure_endpoint"] = openai_config.get("azure_endpoint", openai_config.pop("base_url", None))
+                openai_config["azure_deployment"] = openai_config[
+                    "azure_deployment"
+                ].replace(".", "")
+            openai_config["azure_endpoint"] = openai_config.get(
+                "azure_endpoint", openai_config.pop("base_url", None)
+            )
             client = AzureOpenAI(**openai_config)
         else:
             client = OpenAI(**openai_config)
@@ -184,13 +208,17 @@ class OpenAIWrapper:
             return template.format(**context) if allow_format_str_template else template
         return template(context)
 
-    def _construct_create_params(self, create_config: Dict[str, Any], extra_kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    def _construct_create_params(
+        self, create_config: Dict[str, Any], extra_kwargs: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Prime the create_config with additional_kwargs."""
         # Validate the config
         prompt: Optional[str] = create_config.get("prompt")
         messages: Optional[List[Dict[str, Any]]] = create_config.get("messages")
         if (prompt is None) == (messages is None):
-            raise ValueError("Either prompt or messages should be in create config but not both.")
+            raise ValueError(
+                "Either prompt or messages should be in create config but not both."
+            )
         context = extra_kwargs.get("context")
         if context is None:
             # No need to instantiate if no context is provided.
@@ -201,13 +229,17 @@ class OpenAIWrapper:
         params = create_config.copy()
         if prompt is not None:
             # Instantiate the prompt
-            params["prompt"] = self.instantiate(prompt, context, allow_format_str_template)
+            params["prompt"] = self.instantiate(
+                prompt, context, allow_format_str_template
+            )
         elif context:
             # Instantiate the messages
             params["messages"] = [
                 {
                     **m,
-                    "content": self.instantiate(m["content"], context, allow_format_str_template),
+                    "content": self.instantiate(
+                        m["content"], context, allow_format_str_template
+                    ),
                 }
                 if m.get("content")
                 else m
@@ -290,7 +322,9 @@ class OpenAIWrapper:
                             cache.set(key, response)
                         self._update_usage_summary(response, use_cache=True)
                         # check the filter
-                        pass_filter = filter_func is None or filter_func(context=context, response=response)
+                        pass_filter = filter_func is None or filter_func(
+                            context=context, response=response
+                        )
                         if pass_filter or i == last:
                             # Return the response if it passes the filter or it is the last client
                             response.config_id = i
@@ -317,7 +351,9 @@ class OpenAIWrapper:
                         cache.set(key, response)
 
                 # check the filter
-                pass_filter = filter_func is None or filter_func(context=context, response=response)
+                pass_filter = filter_func is None or filter_func(
+                    context=context, response=response
+                )
                 if pass_filter or i == last:
                     # Return the response if it passes the filter or it is the last client
                     response.config_id = i
@@ -362,7 +398,9 @@ class OpenAIWrapper:
 
     @staticmethod
     def _update_function_call_from_chunk(
-        function_call_chunk: Union[ChoiceDeltaToolCallFunction, ChoiceDeltaFunctionCall],
+        function_call_chunk: Union[
+            ChoiceDeltaToolCallFunction, ChoiceDeltaFunctionCall
+        ],
         full_function_call: Optional[Dict[str, Any]],
         completion_tokens: int,
     ) -> Tuple[Dict[str, Any], int]:
@@ -416,19 +454,28 @@ class OpenAIWrapper:
             )
 
         # Handle tool call
-        assert full_tool_call is None or isinstance(full_tool_call, dict), full_tool_call
+        assert full_tool_call is None or isinstance(
+            full_tool_call, dict
+        ), full_tool_call
         if tool_calls_chunk:
             if full_tool_call is None:
                 full_tool_call = {}
             for field in ["index", "id", "type"]:
-                completion_tokens += OpenAIWrapper._update_dict_from_chunk(tool_calls_chunk, full_tool_call, field)
+                completion_tokens += OpenAIWrapper._update_dict_from_chunk(
+                    tool_calls_chunk, full_tool_call, field
+                )
 
             if hasattr(tool_calls_chunk, "function") and tool_calls_chunk.function:
                 if "function" not in full_tool_call:
                     full_tool_call["function"] = None
 
-                full_tool_call["function"], completion_tokens = OpenAIWrapper._update_function_call_from_chunk(
-                    tool_calls_chunk.function, full_tool_call["function"], completion_tokens
+                (
+                    full_tool_call["function"],
+                    completion_tokens,
+                ) = OpenAIWrapper._update_function_call_from_chunk(
+                    tool_calls_chunk.function,
+                    full_tool_call["function"],
+                    completion_tokens,
                 )
 
         if full_tool_call:
@@ -436,7 +483,9 @@ class OpenAIWrapper:
         else:
             raise RuntimeError("Tool call is not found, this should not happen.")
 
-    def _completions_create(self, client: OpenAI, params: Dict[str, Any], **extra_config) -> ChatCompletion:
+    def _completions_create(
+        self, client: OpenAI, params: Dict[str, Any], **extra_config
+    ) -> ChatCompletion:
         """Create a completion for a given config using openai's client.
 
         Args:
@@ -447,7 +496,7 @@ class OpenAIWrapper:
             The completion.
         """
         completions: Completions = client.chat.completions if "messages" in params else client.completions  # type: ignore [attr-defined]
-        
+
         # If streaming is enabled, has messages, and does not have functions, then
         # iterate over the chunks of the response
         if "api_type" in params:
@@ -474,8 +523,12 @@ class OpenAIWrapper:
             for chunk_index, chunk in enumerate(completions.create(**params)):
                 if chunk_index % NTH_CHUNK_CHECK == 0 and self.redis_client:
                     delete_return_value = self.redis_client.delete(f"{sid}_stop")
-                    if delete_return_value == 1:  # 1 indicates that it was deleted, so must have been set
-                        raise StopGeneratingException(f"stop key was set, stopping generating")
+                    if (
+                        delete_return_value == 1
+                    ):  # 1 indicates that it was deleted, so must have been set
+                        raise StopGeneratingException(
+                            "stop key was set, stopping generating"
+                        )
                 if chunk.choices:
                     for choice in chunk.choices:
                         if choice.delta.function_call and not choice.delta.content:
@@ -493,15 +546,12 @@ class OpenAIWrapper:
                                 "text": msg,
                                 "deltaTokens": prompt_tokens,
                                 "chunkId": message_uuid,
-                                "codeBlocks": []
+                                "codeBlocks": [],
                             }
                             if is_function_call:
                                 message_chunk["first"] = True
                                 message_chunk["single"] = True
-                            send_to_socket(
-                                "message",
-                                message_chunk
-                            )
+                            send_to_socket("message", message_chunk)
                             return response
                         content = choice.delta.content
                         tool_calls_chunks = choice.delta.tool_calls
@@ -511,14 +561,21 @@ class OpenAIWrapper:
                         # the code should work regardless of whether function calls are removed or not, but test_chat_functions_stream should fail
                         # begin block
                         function_call_chunk = (
-                            choice.delta.function_call if hasattr(choice.delta, "function_call") else None
+                            choice.delta.function_call
+                            if hasattr(choice.delta, "function_call")
+                            else None
                         )
                         # Handle function call
                         if function_call_chunk:
                             # Handle function call
                             if function_call_chunk:
-                                full_function_call, completion_tokens = self._update_function_call_from_chunk(
-                                    function_call_chunk, full_function_call, completion_tokens
+                                (
+                                    full_function_call,
+                                    completion_tokens,
+                                ) = self._update_function_call_from_chunk(
+                                    function_call_chunk,
+                                    full_function_call,
+                                    completion_tokens,
                                 )
                             if not content:
                                 continue
@@ -533,10 +590,17 @@ class OpenAIWrapper:
                                     full_tool_calls = []
                                 if ix >= len(full_tool_calls):
                                     # in case ix is not sequential
-                                    full_tool_calls = full_tool_calls + [None] * (ix - len(full_tool_calls) + 1)
+                                    full_tool_calls = full_tool_calls + [None] * (
+                                        ix - len(full_tool_calls) + 1
+                                    )
 
-                                full_tool_calls[ix], completion_tokens = self._update_tool_calls_from_chunk(
-                                    tool_calls_chunk, full_tool_calls[ix], completion_tokens
+                                (
+                                    full_tool_calls[ix],
+                                    completion_tokens,
+                                ) = self._update_tool_calls_from_chunk(
+                                    tool_calls_chunk,
+                                    full_tool_calls[ix],
+                                    completion_tokens,
                                 )
                                 if not content:
                                     continue
@@ -551,7 +615,7 @@ class OpenAIWrapper:
                                     "text": content,
                                     "first": first,
                                     "tokens": 1,
-                                    "timestamp": datetime.now().timestamp() * 1000
+                                    "timestamp": datetime.now().timestamp() * 1000,
                                 }
                                 send_to_socket("message", message)
                             response_contents[choice.index] += content
@@ -575,10 +639,13 @@ class OpenAIWrapper:
             )
             send_to_socket(
                 "message_complete",
-                {"text": response_contents[0] if len(response_contents) > 0 else "",
-                 "deltaTokens": prompt_tokens,
-                 "chunkId": message_uuid,
-                 "codeBlocks": []})
+                {
+                    "text": response_contents[0] if len(response_contents) > 0 else "",
+                    "deltaTokens": prompt_tokens,
+                    "chunkId": message_uuid,
+                    "codeBlocks": [],
+                },
+            )
             for i in range(len(response_contents)):
                 if OPENAIVERSION >= "1.5":  # pragma: no cover
                     # OpenAI versions 1.5.0 and above
@@ -615,7 +682,9 @@ class OpenAIWrapper:
 
         return response
 
-    def _update_usage_summary(self, response: Union[ChatCompletion, Completion], use_cache: bool) -> None:
+    def _update_usage_summary(
+        self, response: Union[ChatCompletion, Completion], use_cache: bool
+    ) -> None:
         """Update the usage summary.
 
         Usage is calculated no matter filter is passed or not.
@@ -623,8 +692,12 @@ class OpenAIWrapper:
         try:
             usage = response.usage
             assert usage is not None
-            usage.prompt_tokens = 0 if usage.prompt_tokens is None else usage.prompt_tokens
-            usage.completion_tokens = 0 if usage.completion_tokens is None else usage.completion_tokens
+            usage.prompt_tokens = (
+                0 if usage.prompt_tokens is None else usage.prompt_tokens
+            )
+            usage.completion_tokens = (
+                0 if usage.completion_tokens is None else usage.completion_tokens
+            )
             usage.total_tokens = 0 if usage.total_tokens is None else usage.total_tokens
         except (AttributeError, AssertionError):
             logger.debug("Usage attribute is not found in the response.", exc_info=True)
@@ -638,10 +711,18 @@ class OpenAIWrapper:
 
             usage_summary[response.model] = {
                 "cost": usage_summary.get(response.model, {}).get("cost", 0) + response.cost,  # type: ignore [union-attr]
-                "prompt_tokens": usage_summary.get(response.model, {}).get("prompt_tokens", 0) + usage.prompt_tokens,
-                "completion_tokens": usage_summary.get(response.model, {}).get("completion_tokens", 0)
+                "prompt_tokens": usage_summary.get(response.model, {}).get(
+                    "prompt_tokens", 0
+                )
+                + usage.prompt_tokens,
+                "completion_tokens": usage_summary.get(response.model, {}).get(
+                    "completion_tokens", 0
+                )
                 + usage.completion_tokens,
-                "total_tokens": usage_summary.get(response.model, {}).get("total_tokens", 0) + usage.total_tokens,
+                "total_tokens": usage_summary.get(response.model, {}).get(
+                    "total_tokens", 0
+                )
+                + usage.total_tokens,
             }
             return usage_summary
 
@@ -649,13 +730,20 @@ class OpenAIWrapper:
         if not use_cache:
             self.actual_usage_summary = update_usage(self.actual_usage_summary)
 
-    def print_usage_summary(self, mode: Union[str, List[str]] = ["actual", "total"]) -> None:
+    def print_usage_summary(
+        self, mode: Union[str, List[str]] = ["actual", "total"]
+    ) -> None:
         """Print the usage summary."""
 
-        def print_usage(usage_summary: Optional[Dict[str, Any]], usage_type: str = "total") -> None:
+        def print_usage(
+            usage_summary: Optional[Dict[str, Any]], usage_type: str = "total"
+        ) -> None:
             word_from_type = "including" if usage_type == "total" else "excluding"
             if usage_summary is None:
-                print("No actual cost incurred (all completions are using cache).", flush=True)
+                print(
+                    "No actual cost incurred (all completions are using cache).",
+                    flush=True,
+                )
                 return
 
             print(f"Usage summary {word_from_type} cached usage: ", flush=True)
@@ -674,7 +762,9 @@ class OpenAIWrapper:
 
         if isinstance(mode, list):
             if len(mode) == 0 or len(mode) > 2:
-                raise ValueError(f'Invalid mode: {mode}, choose from "actual", "total", ["actual", "total"]')
+                raise ValueError(
+                    f'Invalid mode: {mode}, choose from "actual", "total", ["actual", "total"]'
+                )
             if "actual" in mode and "total" in mode:
                 mode = "both"
             elif "actual" in mode:
@@ -698,7 +788,9 @@ class OpenAIWrapper:
         elif mode == "actual":
             print_usage(self.actual_usage_summary, "actual")
         else:
-            raise ValueError(f'Invalid mode: {mode}, choose from "actual", "total", ["actual", "total"]')
+            raise ValueError(
+                f'Invalid mode: {mode}, choose from "actual", "total", ["actual", "total"]'
+            )
         print("-" * 100, flush=True)
 
     def clear_usage_summary(self) -> None:
@@ -711,7 +803,9 @@ class OpenAIWrapper:
         model = response.model
         if model not in OAI_PRICE1K:
             # TODO: add logging to warn that the model is not found
-            logger.debug(f"Model {model} is not found. The cost will be 0.", exc_info=True)
+            logger.debug(
+                f"Model {model} is not found. The cost will be 0.", exc_info=True
+            )
             return 0
 
         n_input_tokens = response.usage.prompt_tokens  # type: ignore [union-attr]
@@ -750,5 +844,6 @@ class OpenAIWrapper:
                 choice.message if choice.message.function_call is not None else choice.message.content  # type: ignore [union-attr]
                 for choice in choices
             ]
+
 
 # TODO: logging

@@ -1,4 +1,3 @@
-import ast
 import base64
 import hashlib
 from typing import List, Dict, Tuple, Union
@@ -6,7 +5,13 @@ import os
 import shutil
 import re
 import autogen
-from ..datamodel import AgentConfig, AgentFlowSpec, AgentWorkFlowConfig, LLMConfig, Skill
+from ..datamodel import (
+    AgentConfig,
+    AgentFlowSpec,
+    AgentWorkFlowConfig,
+    LLMConfig,
+    Skill,
+)
 
 
 def md5_hash(text: str) -> str:
@@ -83,7 +88,16 @@ def get_file_type(file_path: str) -> str:
     }
 
     # Supported image extensions
-    IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".svg", ".webp"}
+    IMAGE_EXTENSIONS = {
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".bmp",
+        ".tiff",
+        ".svg",
+        ".webp",
+    }
     # Supported (web) video extensions
     VIDEO_EXTENSIONS = {".mp4", ".webm", ".ogg", ".mov", ".avi", ".wmv"}
 
@@ -174,7 +188,9 @@ def get_modified_files(
                 while os.path.exists(dest_file_path):
                     base, extension = os.path.splitext(file)
                     # Handling potential name conflicts by appending a number
-                    dest_file_path = os.path.join(dest_dir, f"{base}_{copy_idx}{extension}")
+                    dest_file_path = os.path.join(
+                        dest_dir, f"{base}_{copy_idx}{extension}"
+                    )
                     copy_idx += 1
 
                 # Copying the modified file to the destination directory
@@ -322,7 +338,9 @@ def get_default_agent_config(work_dir: str) -> AgentWorkFlowConfig:
             },
             max_consecutive_auto_reply=10,
             llm_config=llm_config,
-            is_termination_msg=lambda x: x.get("content", "").rstrip().endswith("TERMINATE"),
+            is_termination_msg=lambda x: x.get("content", "")
+            .rstrip()
+            .endswith("TERMINATE"),
         ),
     )
 

@@ -75,7 +75,9 @@ class GroupChat:
             agents = self.agents
 
         # What index is the agent? (-1 if not present)
-        idx = self.agent_names.index(agent.name) if agent.name in self.agent_names else -1
+        idx = (
+            self.agent_names.index(agent.name) if agent.name in self.agent_names else -1
+        )
 
         # Return the next agent
         if agents == self.agents:
@@ -102,7 +104,9 @@ Then select the next role from {[agent.name for agent in agents]} to play. Only 
             agents = self.agents
         return f"Read the above conversation. Then select the next role from {[agent.name for agent in agents]} to play. Only return the role."
 
-    def manual_select_speaker(self, agents: Optional[List[Agent]] = None) -> Union[Agent, None]:
+    def manual_select_speaker(
+        self, agents: Optional[List[Agent]] = None
+    ) -> Union[Agent, None]:
         """Manually select the next speaker."""
         if agents is None:
             agents = self.agents
@@ -116,10 +120,14 @@ Then select the next role from {[agent.name for agent in agents]} to play. Only 
         while try_count <= 3:
             try_count += 1
             if try_count >= 3:
-                print(f"You have tried {try_count} times. The next speaker will be selected automatically.")
+                print(
+                    f"You have tried {try_count} times. The next speaker will be selected automatically."
+                )
                 break
             try:
-                i = input("Enter the number of the next speaker (enter nothing or `q` to use auto selection): ")
+                i = input(
+                    "Enter the number of the next speaker (enter nothing or `q` to use auto selection): "
+                )
                 if i == "" or i == "q":
                     break
                 i = int(i)
@@ -128,20 +136,27 @@ Then select the next role from {[agent.name for agent in agents]} to play. Only 
                 else:
                     raise ValueError
             except ValueError:
-                print(f"Invalid input. Please enter a number between 1 and {_n_agents}.")
+                print(
+                    f"Invalid input. Please enter a number between 1 and {_n_agents}."
+                )
         return None
 
     def _prepare_and_select_agents(
         self, last_speaker: Agent
     ) -> Tuple[Optional[Agent], List[Agent], Optional[List[Dict]]]:
-        if self.speaker_selection_method.lower() not in self._VALID_SPEAKER_SELECTION_METHODS:
+        if (
+            self.speaker_selection_method.lower()
+            not in self._VALID_SPEAKER_SELECTION_METHODS
+        ):
             raise ValueError(
                 f"GroupChat speaker_selection_method is set to '{self.speaker_selection_method}'. "
                 f"It should be one of {self._VALID_SPEAKER_SELECTION_METHODS} (case insensitive). "
             )
 
         if not isinstance(self.allow_repeat_speaker, (bool, list)):
-            raise ValueError("GroupChat allow_repeat_speaker should be a bool or a list of Agents.")
+            raise ValueError(
+                "GroupChat allow_repeat_speaker should be a bool or a list of Agents."
+            )
         # If provided a list, make sure the agent is in the list
         allow_repeat_speaker = (
             self.allow_repeat_speaker
@@ -157,7 +172,11 @@ Then select the next role from {[agent.name for agent in agents]} to play. Only 
                 f"GroupChat is underpopulated with {n_agents} agents. "
                 "Please add more agents to the GroupChat or use direct communication instead."
             )
-        elif n_agents == 2 and self.speaker_selection_method.lower() != "round_robin" and allow_repeat_speaker:
+        elif (
+            n_agents == 2
+            and self.speaker_selection_method.lower() != "round_robin"
+            and allow_repeat_speaker
+        ):
             logger.warning(
                 f"GroupChat is underpopulated with {n_agents} agents. "
                 "It is recommended to set speaker_selection_method to 'round_robin' or allow_repeat_speaker to False."
@@ -167,18 +186,25 @@ Then select the next role from {[agent.name for agent in agents]} to play. Only 
         if (
             self.func_call_filter
             and self.messages
-            and ("function_call" in self.messages[-1] or "tool_calls" in self.messages[-1])
+            and (
+                "function_call" in self.messages[-1]
+                or "tool_calls" in self.messages[-1]
+            )
         ):
             funcs = []
             if "function_call" in self.messages[-1]:
                 funcs += [self.messages[-1]["function_call"]["name"]]
             if "tool_calls" in self.messages[-1]:
                 funcs += [
-                    tool["function"]["name"] for tool in self.messages[-1]["tool_calls"] if tool["type"] == "function"
+                    tool["function"]["name"]
+                    for tool in self.messages[-1]["tool_calls"]
+                    if tool["type"] == "function"
                 ]
 
             # find agents with the right function_map which contains the function name
-            agents = [agent for agent in self.agents if agent.can_execute_function(funcs)]
+            agents = [
+                agent for agent in self.agents if agent.can_execute_function(funcs)
+            ]
             if len(agents) == 1:
                 # only one agent can execute the function
                 return agents[0], agents, None
@@ -193,7 +219,11 @@ Then select the next role from {[agent.name for agent in agents]} to play. Only 
                         "Please check the function_map of the agents."
                     )
         # remove the last speaker from the list to avoid selecting the same speaker if allow_repeat_speaker is False
-        agents = agents if allow_repeat_speaker else [agent for agent in agents if agent != last_speaker]
+        agents = (
+            agents
+            if allow_repeat_speaker
+            else [agent for agent in agents if agent != last_speaker]
+        )
 
         select_speaker_messages = None
         if self.speaker_selection_method.lower() == "manual":
@@ -207,9 +237,13 @@ Then select the next role from {[agent.name for agent in agents]} to play. Only 
             select_speaker_messages = self.messages.copy()
             # If last message is a tool call or function call, blank the call so the api doesn't throw
             if select_speaker_messages[-1].get("function_call", False):
-                select_speaker_messages[-1] = dict(select_speaker_messages[-1], function_call=None)
+                select_speaker_messages[-1] = dict(
+                    select_speaker_messages[-1], function_call=None
+                )
             if select_speaker_messages[-1].get("tool_calls", False):
-                select_speaker_messages[-1] = dict(select_speaker_messages[-1], tool_calls=None)
+                select_speaker_messages[-1] = dict(
+                    select_speaker_messages[-1], tool_calls=None
+                )
             select_speaker_messages = select_speaker_messages + [
                 {"role": "system", "content": self.select_speaker_prompt(agents)}
             ]
@@ -235,7 +269,9 @@ Then select the next role from {[agent.name for agent in agents]} to play. Only 
         final, name = await selector.a_generate_oai_reply(messages)
         return self._finalize_speaker(last_speaker, final, name, agents)
 
-    def _finalize_speaker(self, last_speaker: Agent, final: bool, name: str, agents: List[Agent]) -> Agent:
+    def _finalize_speaker(
+        self, last_speaker: Agent, final: bool, name: str, agents: List[Agent]
+    ) -> Agent:
         if not final:
             # the LLM client is None, thus no reply is generated. Use round robin instead.
             return self.next_agent(last_speaker, agents)
@@ -269,7 +305,9 @@ Then select the next role from {[agent.name for agent in agents]} to play. Only 
             roles.append(f"{agent.name}: {agent.description}".strip())
         return "\n".join(roles)
 
-    def _mentioned_agents(self, message_content: Union[str, List], agents: List[Agent]) -> Dict:
+    def _mentioned_agents(
+        self, message_content: Union[str, List], agents: List[Agent]
+    ) -> Dict:
         """Counts the number of times each agent is mentioned in the provided message content.
 
         Args:
@@ -289,7 +327,9 @@ Then select the next role from {[agent.name for agent in agents]} to play. Only 
             regex = (
                 r"(?<=\W)" + re.escape(agent.name) + r"(?=\W)"
             )  # Finds agent mentions, taking word boundaries into account
-            count = len(re.findall(regex, f" {message_content} "))  # Pad the message to help with matching
+            count = len(
+                re.findall(regex, f" {message_content} ")
+            )  # Pad the message to help with matching
             if count > 0:
                 mentions[agent.name] = count
         return mentions
@@ -299,20 +339,22 @@ class GroupChatManager(ConversableAgent):
     """(In preview) A chat manager agent that can manage a group chat of multiple agents."""
 
     def __init__(
-            self,
-            groupchat: GroupChat,
-            name: Optional[str] = "chat_manager",
-            # unlimited consecutive auto reply by default
-            max_consecutive_auto_reply: Optional[int] = sys.maxsize,
-            human_input_mode: Optional[str] = "NEVER",
-            system_message: Optional[Union[str, List]] = "Group chat manager.",
-            use_sockets: Optional[bool] = False,
-            socket_client: Optional[Union[SimpleClient, bool]] = None,
-            sid: Optional[Union[str, None]] = "",
-            # seed: Optional[int] = 4,
-            **kwargs,
+        self,
+        groupchat: GroupChat,
+        name: Optional[str] = "chat_manager",
+        # unlimited consecutive auto reply by default
+        max_consecutive_auto_reply: Optional[int] = sys.maxsize,
+        human_input_mode: Optional[str] = "NEVER",
+        system_message: Optional[Union[str, List]] = "Group chat manager.",
+        use_sockets: Optional[bool] = False,
+        socket_client: Optional[Union[SimpleClient, bool]] = None,
+        sid: Optional[Union[str, None]] = "",
+        # seed: Optional[int] = 4,
+        **kwargs,
     ):
-        if kwargs.get("llm_config") and (kwargs["llm_config"].get("functions") or kwargs["llm_config"].get("tools")):
+        if kwargs.get("llm_config") and (
+            kwargs["llm_config"].get("functions") or kwargs["llm_config"].get("tools")
+        ):
             raise ValueError(
                 "GroupChatManager is not allowed to make function/tool calls. Please remove the 'functions' or 'tools' config in 'llm_config' you passed in."
             )
@@ -332,7 +374,12 @@ class GroupChatManager(ConversableAgent):
 
         # Order of register_reply is important.
         # Allow sync chat if initiated using initiate_chat
-        self.register_reply(Agent, GroupChatManager.run_chat, config=groupchat, reset_config=GroupChat.reset)
+        self.register_reply(
+            Agent,
+            GroupChatManager.run_chat,
+            config=groupchat,
+            reset_config=GroupChat.reset,
+        )
         # Allow async chat if initiated using a_initiate_chat
         self.register_reply(
             Agent,
@@ -342,14 +389,21 @@ class GroupChatManager(ConversableAgent):
             ignore_async_in_sync_chat=True,
         )
 
-    def _prepare_chat(self, recipient: ConversableAgent, clear_history: bool, prepare_recipient: bool = True) -> None:
+    def _prepare_chat(
+        self,
+        recipient: ConversableAgent,
+        clear_history: bool,
+        prepare_recipient: bool = True,
+    ) -> None:
         super()._prepare_chat(recipient, clear_history, prepare_recipient)
 
         if clear_history:
             self._groupchat.reset()
 
         for agent in self._groupchat.agents:
-            if (recipient != agent or prepare_recipient) and isinstance(agent, ConversableAgent):
+            if (recipient != agent or prepare_recipient) and isinstance(
+                agent, ConversableAgent
+            ):
                 agent._prepare_chat(self, clear_history, False)
 
     def run_chat(

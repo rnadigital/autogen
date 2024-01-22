@@ -5,7 +5,9 @@ import os
 import shutil
 
 current_file_dir = os.path.dirname(os.path.abspath(__file__))
-challenge_path = os.path.join(os.path.dirname(current_file_dir), "scenarios/AutoGPT/challenges")
+challenge_path = os.path.join(
+    os.path.dirname(current_file_dir), "scenarios/AutoGPT/challenges"
+)
 data_paths = glob.glob(str(challenge_path) + "/*/data.json")
 
 for data_path in data_paths:
@@ -36,7 +38,9 @@ for data_path in data_paths:
     artifacts_in = False
     if os.path.exists(os.path.join(workspace, "artifacts_in")):
         artifacts_in = True
-        target_folder = os.path.join(save_path, "Templates/TwoAgents/coding/file", data["name"])
+        target_folder = os.path.join(
+            save_path, "Templates/TwoAgents/coding/file", data["name"]
+        )
         if os.path.exists(target_folder):
             shutil.rmtree(target_folder)
         shutil.copytree(os.path.join(workspace, "artifacts_in"), target_folder)
@@ -48,7 +52,10 @@ for data_path in data_paths:
         if not os.path.exists(target_folder):
             os.makedirs(target_folder)
         for filename in os.listdir(os.path.join(workspace, "custom_python")):
-            shutil.copy(os.path.join(workspace, "custom_python", filename), os.path.join(target_folder, filename))
+            shutil.copy(
+                os.path.join(workspace, "custom_python", filename),
+                os.path.join(target_folder, filename),
+            )
             # print(f"File copied from {os.path.join(workspace, 'custom_python', filename)} to {target_folder}")
 
     record = {

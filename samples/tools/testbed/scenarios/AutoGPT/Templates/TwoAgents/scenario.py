@@ -7,7 +7,9 @@ testbed_utils.init()
 work_dir = "coding"
 target_folder = "__TARGET_FOLDER__"  # path to the artifact folder
 
-config_list = config_list_from_json("OAI_CONFIG_LIST", filter_dict={"model": ["__MODEL__"]})
+config_list = config_list_from_json(
+    "OAI_CONFIG_LIST", filter_dict={"model": ["__MODEL__"]}
+)
 
 assistant = AssistantAgent(
     "assistant",

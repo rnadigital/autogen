@@ -1,8 +1,7 @@
 import copy
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
-from autogen import OpenAIWrapper
-from autogen.agentchat import Agent, ConversableAgent
+from autogen.agentchat import ConversableAgent
 from autogen.agentchat.contrib.img_utils import gpt4v_formatter
 
 try:
@@ -61,7 +60,9 @@ class MultimodalConversableAgent(ConversableAgent):
         Args:
             system_message (str): system message for the OpenAIWrapper inference.
         """
-        self._oai_system_message[0]["content"] = self._message_to_dict(system_message)["content"]
+        self._oai_system_message[0]["content"] = self._message_to_dict(system_message)[
+            "content"
+        ]
         self._oai_system_message[0]["role"] = "system"
 
     @staticmethod
@@ -87,7 +88,9 @@ class MultimodalConversableAgent(ConversableAgent):
             try:
                 content_str(message["content"])
             except (TypeError, ValueError) as e:
-                print("The `content` field should be compatible with the content_str function!")
+                print(
+                    "The `content` field should be compatible with the content_str function!"
+                )
                 raise e
             return message
         raise ValueError(f"Unsupported message type: {type(message)}")

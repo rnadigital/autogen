@@ -8,7 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from conftest import skip_openai  # noqa: E402
 
 try:
-    from openai import OpenAI
+    pass
 except ImportError:
     skip = True
 else:
@@ -92,7 +92,9 @@ def test_gpt35(human_input_mode="NEVER", max_consecutive_auto_reply=5):
     user = UserProxyAgent(
         "user",
         human_input_mode=human_input_mode,
-        is_termination_msg=lambda x: x.get("content", "").rstrip().endswith("TERMINATE"),
+        is_termination_msg=lambda x: x.get("content", "")
+        .rstrip()
+        .endswith("TERMINATE"),
         max_consecutive_auto_reply=max_consecutive_auto_reply,
         code_execution_config={
             "work_dir": f"{here}/test_agent_scripts",
@@ -107,7 +109,11 @@ If "Thank you" or "You\'re welcome" are said in the conversation, then say TERMI
     )
     user.initiate_chat(assistant, message="TERMINATE")
     # should terminate without sending any message
-    assert assistant.last_message()["content"] == assistant.last_message(user)["content"] == "TERMINATE"
+    assert (
+        assistant.last_message()["content"]
+        == assistant.last_message(user)["content"]
+        == "TERMINATE"
+    )
     coding_task = "Print hello world to a file called hello.txt"
     user.initiate_chat(assistant, message=coding_task)
     # coding_task = "Create a powerpoint with the text hello world in it."
@@ -135,7 +141,9 @@ def test_create_execute_script(human_input_mode="NEVER", max_consecutive_auto_re
         "user",
         human_input_mode=human_input_mode,
         max_consecutive_auto_reply=max_consecutive_auto_reply,
-        is_termination_msg=lambda x: x.get("content", "").rstrip().endswith("TERMINATE"),
+        is_termination_msg=lambda x: x.get("content", "")
+        .rstrip()
+        .endswith("TERMINATE"),
     )
     user.initiate_chat(
         assistant,
@@ -147,7 +155,9 @@ def test_create_execute_script(human_input_mode="NEVER", max_consecutive_auto_re
         human_input_mode=human_input_mode,
         code_execution_config={"work_dir": f"{here}/test_agent_scripts"},
         max_consecutive_auto_reply=max_consecutive_auto_reply,
-        is_termination_msg=lambda x: x.get("content", "").rstrip().endswith("TERMINATE"),
+        is_termination_msg=lambda x: x.get("content", "")
+        .rstrip()
+        .endswith("TERMINATE"),
     )
     user.initiate_chat(
         assistant,
@@ -171,7 +181,13 @@ def test_tsp(human_input_mode="NEVER", max_consecutive_auto_reply=10):
         OAI_CONFIG_LIST,
         file_location=KEY_LOC,
         filter_dict={
-            "model": ["gpt-4", "gpt4", "gpt-4-32k", "gpt-4-32k-0314", "gpt-4-32k-v0314"],
+            "model": [
+                "gpt-4",
+                "gpt4",
+                "gpt-4-32k",
+                "gpt-4-32k-0314",
+                "gpt-4-32k-v0314",
+            ],
         },
     )
     hard_questions = [
@@ -190,7 +206,9 @@ def test_tsp(human_input_mode="NEVER", max_consecutive_auto_reply=10):
             return self._prompt.format(question=question)
 
     # autogen.ChatCompletion.start_logging()
-    assistant = AssistantAgent("assistant", llm_config={"temperature": 0, "config_list": config_list})
+    assistant = AssistantAgent(
+        "assistant", llm_config={"temperature": 0, "config_list": config_list}
+    )
     user = TSPUserProxyAgent(
         "user",
         code_execution_config={"work_dir": here},
