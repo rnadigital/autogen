@@ -22,7 +22,6 @@ else:
 import os
 
 try:
-
     HAS_UNSTRUCTURED = True
 except ImportError:
     HAS_UNSTRUCTURED = False
