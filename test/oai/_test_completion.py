@@ -36,12 +36,14 @@ def valid_json_filter(response, **_):
 
 def test_filter():
     try:
-        import openai
+        pass
     except ImportError as exc:
         print(exc)
         return
     config_list = autogen.config_list_from_models(
-        KEY_LOC, exclude="aoai", model_list=["text-ada-001", "gpt-3.5-turbo", "text-davinci-003"]
+        KEY_LOC,
+        exclude="aoai",
+        model_list=["text-ada-001", "gpt-3.5-turbo", "text-davinci-003"],
     )
     response = autogen.Completion.create(
         context={"yes_or_no_choice": True},
@@ -66,8 +68,12 @@ def test_filter():
         prompt="How to construct a json request to Bing API to search for 'latest AI news'? Return the JSON request.",
         filter_func=valid_json_filter,
     )
-    assert response["config_id"] == 2 or response["pass_filter"], "the response must pass filter unless all fail"
-    assert not response["pass_filter"] or json.loads(autogen.Completion.extract_text(response)[0])
+    assert (
+        response["config_id"] == 2 or response["pass_filter"]
+    ), "the response must pass filter unless all fail"
+    assert not response["pass_filter"] or json.loads(
+        autogen.Completion.extract_text(response)[0]
+    )
 
 
 def test_chatcompletion():
@@ -106,7 +112,7 @@ def test_chatcompletion():
 
 def test_multi_model():
     try:
-        import openai
+        pass
     except ImportError as exc:
         print(exc)
         return
@@ -119,8 +125,7 @@ def test_multi_model():
 
 def test_nocontext():
     try:
-        import openai
-        import diskcache
+        pass
     except ImportError as exc:
         print(exc)
         return
@@ -162,7 +167,9 @@ def test_nocontext():
     )
     print(code)
 
-    solution, cost = solve_problem("1+1=", config_list=autogen.config_list_gpt4_gpt35(KEY_LOC))
+    solution, cost = solve_problem(
+        "1+1=", config_list=autogen.config_list_gpt4_gpt35(KEY_LOC)
+    )
     print(solution, cost)
 
 
@@ -214,8 +221,7 @@ def test_humaneval(num_samples=1):
     autogen.Completion.clear_cache(cache_path_root="{here}/cache")
     autogen.Completion.set_cache(seed)
     try:
-        import openai
-        import diskcache
+        pass
     except ImportError as exc:
         print(exc)
         return
@@ -223,7 +229,9 @@ def test_humaneval(num_samples=1):
     # no error should be raised
     response = autogen.Completion.create(
         context=test_data[0],
-        config_list=autogen.config_list_from_models(KEY_LOC, model_list=["gpt-3.5-turbo"]),
+        config_list=autogen.config_list_from_models(
+            KEY_LOC, model_list=["gpt-3.5-turbo"]
+        ),
         prompt="",
         max_tokens=1,
         max_retry_period=0,
@@ -242,7 +250,9 @@ def test_humaneval(num_samples=1):
         allow_format_str_template=True,
         config_list=config_list,
     )
-    response = autogen.Completion.create(context=test_data[0], config_list=config_list, **config)
+    response = autogen.Completion.create(
+        context=test_data[0], config_list=config_list, **config
+    )
     # a minimal tuning example for tuning chat completion models using the Completion class
     config, _ = autogen.Completion.tune(
         data=tune_data,
@@ -255,7 +265,9 @@ def test_humaneval(num_samples=1):
         allow_format_str_template=True,
         config_list=config_list,
     )
-    response = autogen.Completion.create(context=test_data[0], config_list=config_list, **config)
+    response = autogen.Completion.create(
+        context=test_data[0], config_list=config_list, **config
+    )
     # a minimal tuning example for tuning chat completion models using the ChatCompletion class
     config_list = autogen.config_list_openai_aoai(KEY_LOC)
     config, _ = autogen.ChatCompletion.tune(
@@ -269,7 +281,9 @@ def test_humaneval(num_samples=1):
         allow_format_str_template=True,
         request_timeout=120,
     )
-    response = autogen.ChatCompletion.create(context=test_data[0], config_list=config_list, **config)
+    response = autogen.ChatCompletion.create(
+        context=test_data[0], config_list=config_list, **config
+    )
     print(response)
     from openai import RateLimitError
 
@@ -278,7 +292,13 @@ def test_humaneval(num_samples=1):
     except RateLimitError:
         code, cost, selected = implement(
             tune_data[1],
-            [{**config_list[0], "model": "text-ada-001", "prompt": config["messages"]["content"]}],
+            [
+                {
+                    **config_list[0],
+                    "model": "text-ada-001",
+                    "prompt": config["messages"]["content"],
+                }
+            ],
             assertions=assertions,
         )
     print(code)
@@ -308,23 +328,33 @@ def test_humaneval(num_samples=1):
     print(config2)
     print(analysis.best_result)
     print(test_data[0])
-    response = autogen.Completion.create(context=test_data[0], config_list=config_list, **config2)
+    response = autogen.Completion.create(
+        context=test_data[0], config_list=config_list, **config2
+    )
     print(response)
     autogen.Completion.data = test_data[:num_samples]
     result = autogen.Completion._eval(analysis.best_config, prune=False, eval_only=True)
     print("result without pruning", result)
-    result = autogen.Completion.test(test_data[:num_samples], config_list=config_list, **config2)
+    result = autogen.Completion.test(
+        test_data[:num_samples], config_list=config_list, **config2
+    )
     print(result)
     try:
         code, cost, selected = implement(
-            tune_data[1], [{**config_list[-2], **config2}, {**config_list[-1], **config}], assertions=assertions
+            tune_data[1],
+            [{**config_list[-2], **config2}, {**config_list[-1], **config}],
+            assertions=assertions,
         )
     except RateLimitError:
         code, cost, selected = implement(
             tune_data[1],
             [
                 {**config_list[-3], **config2},
-                {**config_list[0], "model": "text-ada-001", "prompt": config["messages"]["content"]},
+                {
+                    **config_list[0],
+                    "model": "text-ada-001",
+                    "prompt": config["messages"]["content"],
+                },
             ],
             assertions=assertions,
         )
@@ -336,8 +366,7 @@ def test_humaneval(num_samples=1):
 
 def test_math(num_samples=-1):
     try:
-        import openai
-        import diskcache
+        pass
     except ImportError as exc:
         print(exc)
         return
@@ -385,7 +414,9 @@ def test_math(num_samples=-1):
         "stop": "###",
     }
     test_data_sample = test_data[0:3]
-    result = autogen.Completion.test(test_data_sample, eval_math_responses, config_list=config_list, **vanilla_config)
+    result = autogen.Completion.test(
+        test_data_sample, eval_math_responses, config_list=config_list, **vanilla_config
+    )
     result = autogen.Completion.test(
         test_data_sample,
         eval_math_responses,
@@ -434,7 +465,9 @@ def test_math(num_samples=-1):
         config_list=config_list,
     )
     print("tuned config", config)
-    result = autogen.Completion.test(test_data_sample, config_list=config_list, **config)
+    result = autogen.Completion.test(
+        test_data_sample, config_list=config_list, **config
+    )
     print("result from tuned config:", result)
     print("empty responses", eval_math_responses([], None))
 

@@ -2,6 +2,8 @@ from .conversable_agent import ConversableAgent
 from socketio.simple_client import SimpleClient
 from typing import Callable, Dict, Literal, Optional, Union
 
+from .conversable_agent import ConversableAgent
+
 
 class AssistantAgent(ConversableAgent):
     """(In preview) Assistant agent, designed to solve a task with LLM.
@@ -27,19 +29,22 @@ When you find an answer, verify the answer carefully. Include verifiable evidenc
 Reply "TERMINATE" in the end when everything is done.
     """
 
+    DEFAULT_DESCRIPTION = "A helpful and general-purpose AI assistant that has strong language skills, Python skills, and Linux command line skills."
+
     def __init__(
-            self,
-            name: str,
-            system_message: Optional[str] = DEFAULT_SYSTEM_MESSAGE,
-            llm_config: Optional[Union[Dict, Literal[False]]] = None,
-            is_termination_msg: Optional[Callable[[Dict], bool]] = None,
-            max_consecutive_auto_reply: Optional[int] = None,
-            human_input_mode: Optional[str] = "NEVER",
-            code_execution_config: Optional[Union[Dict, Literal[False]]] = False,
-            use_sockets: Optional[bool] = False,
-            socket_client: Optional[Union[SimpleClient, bool]] = None,
-            sid: Optional[Union[str, None]] = "",
-            **kwargs,
+        self,
+        name: str,
+        system_message: Optional[str] = DEFAULT_SYSTEM_MESSAGE,
+        llm_config: Optional[Union[Dict, Literal[False]]] = None,
+        is_termination_msg: Optional[Callable[[Dict], bool]] = None,
+        max_consecutive_auto_reply: Optional[int] = None,
+        human_input_mode: Optional[str] = "NEVER",
+        code_execution_config: Optional[Union[Dict, Literal[False]]] = False,
+        description: Optional[str] = None,
+        use_sockets: Optional[bool] = False,
+        socket_client: Optional[Union[SimpleClient, bool]] = None,
+        sid: Optional[Union[str, None]] = "",
+        **kwargs,
     ):
         """
         Args:
@@ -66,8 +71,15 @@ Reply "TERMINATE" in the end when everything is done.
             human_input_mode,
             code_execution_config=code_execution_config,
             llm_config=llm_config,
+            description=description,
             use_sockets=use_sockets,
             socket_client=socket_client,
             sid=sid,
             **kwargs,
         )
+
+        # Update the provided description if None, and we are using the default system_message,
+        # then use the default description.
+        if description is None:
+            if system_message == self.DEFAULT_SYSTEM_MESSAGE:
+                self.description = self.DEFAULT_DESCRIPTION

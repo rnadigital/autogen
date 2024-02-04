@@ -2,27 +2,33 @@ from typing import List, Union, Dict
 import logging
 import json
 import tiktoken
+import re
 
 
 logger = logging.getLogger(__name__)
 
 
 def get_max_token_limit(model="gpt-3.5-turbo-0613"):
+    # Handle common azure model names/aliases
+    model = re.sub(r"^gpt\-?35", "gpt-3.5", model)
+    model = re.sub(r"^gpt4", "gpt-4", model)
+
     max_token_limit = {
         "gpt-3.5-turbo": 4096,
         "gpt-3.5-turbo-0301": 4096,
         "gpt-3.5-turbo-0613": 4096,
         "gpt-3.5-turbo-instruct": 4096,
-        "gpt-3.5-turbo-16k": 16384,
-        "gpt-35-turbo": 4096,
-        "gpt-35-turbo-16k": 16384,
-        "gpt-35-turbo-instruct": 4096,
+        "gpt-3.5-turbo-16k": 16385,
+        "gpt-3.5-turbo-16k-0613": 16385,
+        "gpt-3.5-turbo-1106": 16385,
         "gpt-4": 8192,
         "gpt-4-32k": 32768,
         "gpt-4-32k-0314": 32768,  # deprecate in Sep
         "gpt-4-0314": 8192,  # deprecate in Sep
         "gpt-4-0613": 8192,
         "gpt-4-32k-0613": 32768,
+        "gpt-4-1106-preview": 128000,
+        "gpt-4-vision-preview": 128000,
     }
     return max_token_limit[model]
 
@@ -44,7 +50,9 @@ def token_left(input: Union[str, List, Dict], model="gpt-3.5-turbo-0613") -> int
     return get_max_token_limit(model) - count_token(input, model=model)
 
 
-def count_token(input: Union[str, List, Dict], model: str = "gpt-3.5-turbo-0613") -> int:
+def count_token(
+    input: Union[str, List, Dict], model: str = "gpt-3.5-turbo-0613"
+) -> int:
     """Count number of tokens used by an OpenAI model.
     Args:
         input: (str, list, dict): Input to the model.
@@ -95,13 +103,19 @@ def _num_token_from_messages(messages: Union[List, Dict], model="gpt-3.5-turbo-0
         tokens_per_message = 3
         tokens_per_name = 1
     elif model == "gpt-3.5-turbo-0301":
-        tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
+        tokens_per_message = (
+            4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
+        )
         tokens_per_name = -1  # if there's a name, the role is omitted
     elif "gpt-3.5-turbo" in model:
-        logger.info("gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613.")
+        logger.info(
+            "gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613."
+        )
         return _num_token_from_messages(messages, model="gpt-3.5-turbo-0613")
     elif "gpt-4" in model:
-        logger.info("gpt-4 may update over time. Returning num tokens assuming gpt-4-0613.")
+        logger.info(
+            "gpt-4 may update over time. Returning num tokens assuming gpt-4-0613."
+        )
         return _num_token_from_messages(messages, model="gpt-4-0613")
     else:
         raise NotImplementedError(

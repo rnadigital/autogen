@@ -4,6 +4,7 @@ from pydantic import BaseModel, Extra, root_validator
 from typing import Any, Callable, Dict, List, Optional, Union, Tuple
 from time import sleep
 
+from autogen._pydantic import PYDANTIC_V1
 from autogen.agentchat import Agent, UserProxyAgent
 from autogen.code_utils import UNKNOWN, extract_code, execute_code, infer_lang
 from autogen.math_utils import get_answer
@@ -94,7 +95,11 @@ def _is_termination_msg_mathchat(message):
         if c[0] == "python" or c[0] == "wolfram":
             contain_code = True
             break
-    return not contain_code and get_answer(message) is not None and get_answer(message) != ""
+    return (
+        not contain_code
+        and get_answer(message) is not None
+        and get_answer(message) != ""
+    )
 
 
 def _add_print_to_last_line(code):
@@ -126,7 +131,9 @@ def _remove_print(code):
 class MathUserProxyAgent(UserProxyAgent):
     """(Experimental) A MathChat agent that can handle math problems."""
 
-    MAX_CONSECUTIVE_AUTO_REPLY = 15  # maximum number of consecutive auto replies (subject to future change)
+    MAX_CONSECUTIVE_AUTO_REPLY = (
+        15  # maximum number of consecutive auto replies (subject to future change)
+    )
     DEFAULT_REPLY = "Continue. Please keep solving the problem until you need to query. (If you get to the answer, put it in \\boxed{}.)"
 
     def __init__(
@@ -165,7 +172,9 @@ class MathUserProxyAgent(UserProxyAgent):
             default_auto_reply=default_auto_reply,
             **kwargs,
         )
-        self.register_reply([Agent, None], MathUserProxyAgent._generate_math_reply, 1)
+        self.register_reply(
+            [Agent, None], MathUserProxyAgent._generate_math_reply, position=2
+        )
         # fixed var
         self._max_invalid_q_per_step = max_invalid_q_per_step
 
@@ -176,7 +185,9 @@ class MathUserProxyAgent(UserProxyAgent):
         self._previous_code = ""
         self.last_reply = None
 
-    def generate_init_message(self, problem, prompt_type="default", customized_prompt=None):
+    def generate_init_message(
+        self, problem, prompt_type="default", customized_prompt=None
+    ):
         """Generate a prompt for the assistant agent with the given problem and prompt.
 
         Args:
@@ -220,7 +231,9 @@ class MathUserProxyAgent(UserProxyAgent):
         pycode = pycode.replace("; ", "\n").replace(";", "\n")
         pycode = self._previous_code + _add_print_to_last_line(pycode)
 
-        return_code, output, _ = execute_code(pycode, **self._code_execution_config, timeout=5)
+        return_code, output, _ = execute_code(
+            pycode, **self._code_execution_config, timeout=5
+        )
         is_success = return_code == 0
 
         if not is_success:
@@ -314,7 +327,11 @@ class MathUserProxyAgent(UserProxyAgent):
         reply = reply.strip()
 
         if self.last_reply == reply:
-            return True, reply + "\nYour query or result is same from the last, please try a new approach."
+            return (
+                True,
+                reply
+                + "\nYour query or result is same from the last, please try a new approach.",
+            )
         self.last_reply = reply
 
         if not all_success:
@@ -350,7 +367,9 @@ class MathUserProxyAgent(UserProxyAgent):
 # THE SOFTWARE.
 
 
-def get_from_dict_or_env(data: Dict[str, Any], key: str, env_key: str, default: Optional[str] = None) -> str:
+def get_from_dict_or_env(
+    data: Dict[str, Any], key: str, env_key: str, default: Optional[str] = None
+) -> str:
     """Get a value from a dictionary or an environment variable."""
     if key in data and data[key]:
         return data[key]
@@ -384,19 +403,24 @@ class WolframAlphaAPIWrapper(BaseModel):
     class Config:
         """Configuration for this pydantic object."""
 
-        extra = Extra.forbid
+        if PYDANTIC_V1:
+            extra = Extra.forbid
 
     @root_validator(skip_on_failure=True)
     def validate_environment(cls, values: Dict) -> Dict:
         """Validate that api key and python package exists in environment."""
-        wolfram_alpha_appid = get_from_dict_or_env(values, "wolfram_alpha_appid", "WOLFRAM_ALPHA_APPID")
+        wolfram_alpha_appid = get_from_dict_or_env(
+            values, "wolfram_alpha_appid", "WOLFRAM_ALPHA_APPID"
+        )
         values["wolfram_alpha_appid"] = wolfram_alpha_appid
 
         try:
             import wolframalpha
 
-        except ImportError:
-            raise ImportError("wolframalpha is not installed. " "Please install it with `pip install wolframalpha`")
+        except ImportError as e:
+            raise ImportError(
+                "wolframalpha is not installed. Please install it with `pip install wolframalpha`"
+            ) from e
         client = wolframalpha.Client(wolfram_alpha_appid)
         values["wolfram_client"] = client
 
