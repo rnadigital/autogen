@@ -1,6 +1,8 @@
 """
 Unit test for retrieve_utils.py
 """
+import pytest
+
 try:
     import chromadb
     from autogen.retrieve_utils import (
@@ -18,12 +20,8 @@ except ImportError:
 else:
     skip = False
 import os
-import sys
-import pytest
 
 try:
-    from unstructured.partition.auto import partition
-
     HAS_UNSTRUCTURED = True
 except ImportError:
     HAS_UNSTRUCTURED = False
@@ -48,14 +46,18 @@ class TestRetrieveUtils:
 
     def test_extract_text_from_pdf(self):
         pdf_file_path = os.path.join(test_dir, "example.pdf")
-        assert "".join(expected_text.split()) == "".join(extract_text_from_pdf(pdf_file_path).strip().split())
+        assert "".join(expected_text.split()) == "".join(
+            extract_text_from_pdf(pdf_file_path).strip().split()
+        )
 
     def test_split_files_to_chunks(self):
         pdf_file_path = os.path.join(test_dir, "example.pdf")
         txt_file_path = os.path.join(test_dir, "example.txt")
         chunks = split_files_to_chunks([pdf_file_path, txt_file_path])
         assert all(
-            isinstance(chunk, str) and "AutoGen is an advanced tool designed to assist developers" in chunk.strip()
+            isinstance(chunk, str)
+            and "AutoGen is an advanced tool designed to assist developers"
+            in chunk.strip()
             for chunk in chunks
         )
 
@@ -112,26 +114,54 @@ class TestRetrieveUtils:
             create_vector_db_from_dir(test_dir, client=client)
 
         results = query_vector_db(["autogen"], client=client)
-        assert isinstance(results, dict) and any("autogen" in res[0].lower() for res in results.get("documents", []))
+        assert isinstance(results, dict) and any(
+            "autogen" in res[0].lower() for res in results.get("documents", [])
+        )
 
     def test_custom_vector_db(self):
         try:
             import lancedb
         except ImportError:
             return
-        from autogen.agentchat.contrib.retrieve_user_proxy_agent import RetrieveUserProxyAgent
+        from autogen.agentchat.contrib.retrieve_user_proxy_agent import (
+            RetrieveUserProxyAgent,
+        )
 
         db_path = "/tmp/lancedb"
 
         def create_lancedb():
             db = lancedb.connect(db_path)
             data = [
-                {"vector": [1.1, 1.2], "id": 1, "documents": "This is a test document spark"},
-                {"vector": [0.2, 1.8], "id": 2, "documents": "This is another test document"},
-                {"vector": [0.1, 0.3], "id": 3, "documents": "This is a third test document spark"},
-                {"vector": [0.5, 0.7], "id": 4, "documents": "This is a fourth test document"},
-                {"vector": [2.1, 1.3], "id": 5, "documents": "This is a fifth test document spark"},
-                {"vector": [5.1, 8.3], "id": 6, "documents": "This is a sixth test document"},
+                {
+                    "vector": [1.1, 1.2],
+                    "id": 1,
+                    "documents": "This is a test document spark",
+                },
+                {
+                    "vector": [0.2, 1.8],
+                    "id": 2,
+                    "documents": "This is another test document",
+                },
+                {
+                    "vector": [0.1, 0.3],
+                    "id": 3,
+                    "documents": "This is a third test document spark",
+                },
+                {
+                    "vector": [0.5, 0.7],
+                    "id": 4,
+                    "documents": "This is a fourth test document",
+                },
+                {
+                    "vector": [2.1, 1.3],
+                    "id": 5,
+                    "documents": "This is a fifth test document spark",
+                },
+                {
+                    "vector": [5.1, 8.3],
+                    "id": 6,
+                    "documents": "This is a sixth test document",
+                },
             ]
             try:
                 db.create_table("my_table", data)
@@ -149,10 +179,20 @@ class TestRetrieveUtils:
                     vector = [0.1, 0.3]
                 db = lancedb.connect(db_path)
                 table = db.open_table("my_table")
-                query = table.search(vector).where(f"documents LIKE '%{search_string}%'").limit(n_results).to_df()
-                return {"ids": [query["id"].tolist()], "documents": [query["documents"].tolist()]}
+                query = (
+                    table.search(vector)
+                    .where(f"documents LIKE '%{search_string}%'")
+                    .limit(n_results)
+                    .to_df()
+                )
+                return {
+                    "ids": [query["id"].tolist()],
+                    "documents": [query["documents"].tolist()],
+                }
 
-            def retrieve_docs(self, problem: str, n_results: int = 20, search_string: str = ""):
+            def retrieve_docs(
+                self, problem: str, n_results: int = 20, search_string: str = ""
+            ):
                 results = self.query_vector_db(
                     query_texts=[problem],
                     n_results=n_results,
@@ -175,7 +215,9 @@ class TestRetrieveUtils:
         )
 
         create_lancedb()
-        ragragproxyagent.retrieve_docs("This is a test document spark", n_results=10, search_string="spark")
+        ragragproxyagent.retrieve_docs(
+            "This is a test document spark", n_results=10, search_string="spark"
+        )
         assert ragragproxyagent._results["ids"] == [[3, 1, 5]]
 
     def test_custom_text_split_function(self):
@@ -192,7 +234,9 @@ class TestRetrieveUtils:
             get_or_create=True,
             recursive=False,
         )
-        results = query_vector_db(["autogen"], client=client, collection_name="mytestcollection", n_results=1)
+        results = query_vector_db(
+            ["autogen"], client=client, collection_name="mytestcollection", n_results=1
+        )
         assert (
             "AutoGen is an advanced tool designed to assist developers in harnessing the capabilities"
             in results.get("documents")[0][0]
@@ -229,7 +273,9 @@ class TestRetrieveUtils:
         word_file_path = os.path.join(test_dir, "example.docx")
         chunks = split_files_to_chunks([pdf_file_path, txt_file_path, word_file_path])
         assert all(
-            isinstance(chunk, str) and "AutoGen is an advanced tool designed to assist developers" in chunk.strip()
+            isinstance(chunk, str)
+            and "AutoGen is an advanced tool designed to assist developers"
+            in chunk.strip()
             for chunk in chunks
         )
 

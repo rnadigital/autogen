@@ -1,22 +1,26 @@
-import sys
 import logging
 import os
 import pathlib
 import re
+import string
 import subprocess
+import sys
+import time
+import inspect
+
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from hashlib import md5
 from typing import Callable, Dict, List, Optional, Tuple, Union, Any
 
 from autogen import oai
-from concurrent.futures import ThreadPoolExecutor, TimeoutError
-import time
-import docker
-from PIL import Image
-import queue
-from jupyter_client import KernelManager, find_connection_file
-import inspect
 from io import BytesIO
 
+try:
+    import docker
+except ImportError:
+    docker = None
+
+SENTINEL = object()
 DEFAULT_MODEL = "gpt-4"
 FAST_MODEL = "gpt-3.5-turbo"
 # Regular expression for finding a code block
@@ -39,16 +43,44 @@ PATH_SEPARATOR = WIN32 and "\\" or "/"
 logger = logging.getLogger(__name__)
 
 
-def content_str(content: Union[str, List]) -> str:
-    if type(content) is str:
+def content_str(content: Union[str, List, None]) -> str:
+    """Converts `content` into a string format.
+
+    This function processes content that may be a string, a list of mixed text and image URLs, or None,
+    and converts it into a string. Text is directly appended to the result string, while image URLs are
+    represented by a placeholder image token. If the content is None, an empty string is returned.
+
+    Args:
+        - content (Union[str, List, None]): The content to be processed. Can be a string, a list of dictionaries
+                                      representing text and image URLs, or None.
+
+    Returns:
+        str: A string representation of the input content. Image URLs are replaced with an image token.
+
+    Note:
+    - The function expects each dictionary in the list to have a "type" key that is either "text" or "image_url".
+      For "text" type, the "text" key's value is appended to the result. For "image_url", an image token is appended.
+    - This function is useful for handling content that may include both text and image references, especially
+      in contexts where images need to be represented as placeholders.
+    """
+    if content is None:
+        return ""
+    if isinstance(content, str):
         return content
+    if not isinstance(content, list):
+        raise TypeError(f"content must be None, str, or list, but got {type(content)}")
+
     rst = ""
     for item in content:
+        if not isinstance(item, dict):
+            raise TypeError("Wrong content format: every element should be dict if the content is a list.")
+        assert "type" in item, "Wrong content format. Missing 'type' key in content's dict."
         if item["type"] == "text":
             rst += item["text"]
-        else:
-            assert isinstance(item, dict) and item["type"] == "image_url", "Wrong content format."
+        elif item["type"] == "image_url":
             rst += "<image>"
+        else:
+            raise ValueError(f"Wrong content format: unknown type {item['type']} within the content")
     return rst
 
 
@@ -71,7 +103,7 @@ def infer_lang(code):
 # TODO: In the future move, to better support https://spec.commonmark.org/0.30/#fenced-code-blocks
 #       perhaps by using a full Markdown parser.
 def extract_code(
-        text: Union[str, List], pattern: str = CODE_BLOCK_PATTERN, detect_single_line_code: bool = False
+    text: Union[str, List], pattern: str = CODE_BLOCK_PATTERN, detect_single_line_code: bool = False
 ) -> List[Tuple[str, str]]:
     """Extract code from a text.
 
@@ -197,13 +229,100 @@ def _cmd(lang):
     raise NotImplementedError(f"{lang} not recognized in code execution")
 
 
+def is_docker_running():
+    """Check if docker is running.
+
+    Returns:
+        bool: True if docker is running; False otherwise.
+    """
+    if docker is None:
+        return False
+    try:
+        client = docker.from_env()
+        client.ping()
+        return True
+    except docker.errors.DockerException:
+        return False
+
+
+def in_docker_container():
+    """Check if the code is running in a docker container.
+
+    Returns:
+        bool: True if the code is running in a docker container; False otherwise.
+    """
+    return os.path.exists("/.dockerenv")
+
+
+def decide_use_docker(use_docker) -> bool:
+    if use_docker is None:
+        env_var_use_docker = os.environ.get("AUTOGEN_USE_DOCKER", "True")
+
+        truthy_values = {"1", "true", "yes", "t"}
+        falsy_values = {"0", "false", "no", "f"}
+
+        # Convert the value to lowercase for case-insensitive comparison
+        env_var_use_docker_lower = env_var_use_docker.lower()
+
+        # Determine the boolean value based on the environment variable
+        if env_var_use_docker_lower in truthy_values:
+            use_docker = True
+        elif env_var_use_docker_lower in falsy_values:
+            use_docker = False
+        elif env_var_use_docker_lower == "none":  # Special case for 'None' as a string
+            use_docker = None
+        else:
+            # Raise an error for any unrecognized value
+            raise ValueError(
+                f'Invalid value for AUTOGEN_USE_DOCKER: {env_var_use_docker}. Please set AUTOGEN_USE_DOCKER to "1/True/yes", "0/False/no", or "None".'
+            )
+    return use_docker
+
+
+def check_can_use_docker_or_throw(use_docker) -> None:
+    if use_docker is not None:
+        inside_docker = in_docker_container()
+        docker_installed_and_running = is_docker_running()
+        if use_docker and not inside_docker and not docker_installed_and_running:
+            raise RuntimeError(
+                "Code execution is set to be run in docker (default behaviour) but docker is not running.\n"
+                "The options available are:\n"
+                "- Make sure docker is running (advised approach for code execution)\n"
+                '- Set "use_docker": False in code_execution_config\n'
+                '- Set AUTOGEN_USE_DOCKER to "0/False/no" in your environment variables'
+            )
+
+
+def _sanitize_filename_for_docker_tag(filename: str) -> str:
+    """Convert a filename to a valid docker tag.
+    See https://docs.docker.com/engine/reference/commandline/tag/ for valid tag
+    format.
+
+    Args:
+        filename (str): The filename to be converted.
+
+    Returns:
+        str: The sanitized Docker tag.
+    """
+    # Replace any character not allowed with an underscore
+    allowed_chars = set(string.ascii_letters + string.digits + "_.-")
+    sanitized = "".join(char if char in allowed_chars else "_" for char in filename)
+
+    # Ensure it does not start with a period or a dash
+    if sanitized.startswith(".") or sanitized.startswith("-"):
+        sanitized = "_" + sanitized[1:]
+
+    # Truncate if longer than 128 characters
+    return sanitized[:128]
+
+
 def execute_code(
-        code: Optional[str] = None,
-        timeout: Optional[int] = None,
-        filename: Optional[str] = None,
-        work_dir: Optional[str] = None,
-        use_docker: Optional[Union[List[str], str, bool]] = None,
-        lang: Optional[str] = "python",
+    code: Optional[str] = None,
+    timeout: Optional[int] = None,
+    filename: Optional[str] = None,
+    work_dir: Optional[str] = None,
+    use_docker: Union[List[str], str, bool] = SENTINEL,
+    lang: Optional[str] = "python",
 ) -> Tuple[int, str, str]:
     """Execute code in a docker container.
     This function is not tested on MacOS.
@@ -222,15 +341,15 @@ def execute_code(
             If None, a default working directory will be used.
             The default working directory is the "extensions" directory under
             "path_to_autogen".
-        use_docker (Optional, list, str or bool): The docker image to use for code execution.
+        use_docker (list, str or bool): The docker image to use for code execution.
+            Default is True, which means the code will be executed in a docker container. A default list of images will be used.
             If a list or a str of image name(s) is provided, the code will be executed in a docker container
             with the first image successfully pulled.
-            If None, False or empty, the code will be executed in the current environment.
-            Default is None, which will be converted into an empty list when docker package is available.
+            If False, the code will be executed in the current environment.
             Expected behaviour:
-                - If `use_docker` is explicitly set to True and the docker package is available, the code will run in a Docker container.
-                - If `use_docker` is explicitly set to True but the Docker package is missing, an error will be raised.
-                - If `use_docker` is not set (i.e., left default to None) and the Docker package is not available, a warning will be displayed, but the code will run natively.
+                - If `use_docker` is not set (i.e. left default to True) or is explicitly set to True and the docker package is available, the code will run in a Docker container.
+                - If `use_docker` is not set (i.e. left default to True) or is explicitly set to True but the Docker package is missing or docker isn't running, an error will be raised.
+                - If `use_docker` is explicitly set to False, the code will run natively.
             If the code is executed in the current environment,
             the code must be trusted.
         lang (Optional, str): The language of the code. Default is "python".
@@ -245,18 +364,13 @@ def execute_code(
         logger.error(error_msg)
         raise AssertionError(error_msg)
 
-    # Warn if use_docker was unspecified (or None), and cannot be provided (the default).
-    # In this case the current behavior is to fall back to run natively, but this behavior
-    # is subject to change.
-    if use_docker is None:
-        if docker is None:
-            use_docker = False
-            logger.warning(
-                "execute_code was called without specifying a value for use_docker. Since the python docker package is not available, code will be run natively. Note: this fallback behavior is subject to change"
-            )
-        else:
-            # Default to true
-            use_docker = True
+    running_inside_docker = in_docker_container()
+    docker_running = is_docker_running()
+
+    # SENTINEL is used to indicate that the user did not explicitly set the argument
+    if use_docker is SENTINEL:
+        use_docker = decide_use_docker(use_docker=None)
+    check_can_use_docker_or_throw(use_docker)
 
     timeout = timeout or DEFAULT_TIMEOUT
     original_filename = filename
@@ -268,15 +382,16 @@ def execute_code(
         filename = f"tmp_code_{code_hash}.{'py' if lang.startswith('python') else lang}"
     if work_dir is None:
         work_dir = WORKING_DIR
+
     filepath = os.path.join(work_dir, filename)
     file_dir = os.path.dirname(filepath)
     os.makedirs(file_dir, exist_ok=True)
+
     if code is not None:
         with open(filepath, "w", encoding="utf-8") as fout:
             fout.write(code)
-    # check if already running in a docker container
-    in_docker_container = os.path.exists("/.dockerenv")
-    if not use_docker or in_docker_container:
+
+    if not use_docker or running_inside_docker:
         # already running in a docker container
         cmd = [
             sys.executable if lang.startswith("python") else _cmd(lang),
@@ -307,7 +422,6 @@ def execute_code(
                     return 1, TIMEOUT_MSG, None
         if original_filename is None:
             os.remove(filepath)
-
         if result.returncode:
             logs = result.stderr
             if original_filename is None:
@@ -320,10 +434,16 @@ def execute_code(
             logs = result.stdout
         return result.returncode, logs, None
 
-        # create a docker client
+    # create a docker client
+    if use_docker and not docker_running:
+        raise RuntimeError(
+            "Docker package is missing or docker is not running. Please make sure docker is running or set use_docker=False."
+        )
+
     client = docker.from_env()
+
     image_list = (
-        ["python:3-alpine", "python:3", "python:3-windowsservercore"]
+        ["python:3-slim", "python:3", "python:3-windowsservercore"]
         if use_docker is True
         else [use_docker]
         if isinstance(use_docker, str)
@@ -348,7 +468,7 @@ def execute_code(
     cmd = [
         "sh",
         "-c",
-        f"{_cmd(lang)} {filename}; exit_code=$?; echo -n {exit_code_str}; echo -n $exit_code; echo {exit_code_str}",
+        f'{_cmd(lang)} "{filename}"; exit_code=$?; echo -n {exit_code_str}; echo -n $exit_code; echo {exit_code_str}',
     ]
     # create a docker container
     container = client.containers.run(
@@ -372,7 +492,7 @@ def execute_code(
     # get the container logs
     logs = container.logs().decode("utf-8").rstrip()
     # commit the image
-    tag = filename.replace("/", "")
+    tag = _sanitize_filename_for_docker_tag(filename)
     container.commit(repository="python", tag=tag)
     # remove the container
     container.remove()
@@ -436,13 +556,13 @@ def _remove_check(response):
 
 
 def eval_function_completions(
-        responses: List[str],
-        definition: str,
-        test: Optional[str] = None,
-        entry_point: Optional[str] = None,
-        assertions: Optional[Union[str, Callable[[str], Tuple[str, float]]]] = None,
-        timeout: Optional[float] = 3,
-        use_docker: Optional[bool] = True,
+    responses: List[str],
+    definition: str,
+    test: Optional[str] = None,
+    entry_point: Optional[str] = None,
+    assertions: Optional[Union[str, Callable[[str], Tuple[str, float]]]] = None,
+    timeout: Optional[float] = 3,
+    use_docker: Optional[bool] = True,
 ) -> Dict:
     """(openai<1) Select a response from a list of responses for the function completion task (using generated assertions), and/or evaluate if the task is successful using a gold test.
 
@@ -545,10 +665,10 @@ class PassAssertionFilter:
 
 
 def implement(
-        definition: str,
-        configs: Optional[List[Dict]] = None,
-        assertions: Optional[Union[str, Callable[[str], Tuple[str, float]]]] = generate_assertions,
-) -> tuple[Any, Union[int, Any], Any]:
+    definition: str,
+    configs: Optional[List[Dict]] = None,
+    assertions: Optional[Union[str, Callable[[str], Tuple[str, float]]]] = generate_assertions,
+) -> Tuple[str, float]:
     """(openai<1) Implement a function from a definition.
 
     Args:
@@ -573,16 +693,22 @@ def implement(
     return assertion_filter.responses[assertion_filter.metrics["index_selected"]], cost, response["config_id"]
 
 
+
 def remove_triple_quotes(text):
     # This regex pattern matches triple quotes and any content between them
     # It handles both single (''') and double (""") triple quotes
-    pattern = r'(\'\'\'[\s\S]*?\'\'\'|\"\"\"[\s\S]*?\"\"\")'
+    pattern = r"(\'\'\'[\s\S]*?\'\'\'|\"\"\"[\s\S]*?\"\"\")"
     # Substitute found patterns with an empty string
-    return re.sub(pattern, '', text)
+    return re.sub(pattern, "", text)
 
 
-def execute_function_in_docker(function_name: str, function_code: Any,
-                               function_arguments: dict, use_docker=True, timeout=300):
+def execute_function_in_docker(
+    function_name: str,
+    function_code: Any,
+    function_arguments: dict,
+    use_docker=True,
+    timeout=300,
+):
     try:
         code = inspect.getsource(function_code)
         code = remove_triple_quotes(code)
@@ -705,16 +831,16 @@ print(jupyter_execution(c))
                     print("Failed to pull image", image)
 
         # Create a Dockerfile
-        dockerfile = '''
+        dockerfile = """
                 FROM python:3.10
                 RUN pip install --upgrade pip ipython ipykernel
                 RUN ipython kernel install --name "python3" --user
                 RUN pip install pillow jupyter-client numpy pandas matplotlib yfinance
-                '''
+                """
 
         # Build Docker image
-        f = BytesIO(dockerfile.encode('utf-8'))
-        image, build_logs = client.images.build(fileobj=f, rm=True, tag='python3')
+        f = BytesIO(dockerfile.encode("utf-8"))
+        image, build_logs = client.images.build(fileobj=f, rm=True, tag="python3")
 
         # Create and run the Docker container
         container = client.containers.run(
@@ -724,7 +850,7 @@ print(jupyter_execution(c))
         )
 
         # Wait for the container to finish execution
-        exit_code = container.wait(timeout=timeout)['StatusCode']
+        exit_code = container.wait(timeout=timeout)["StatusCode"]
         print(f"Function Execution finished with exit code: {exit_code}")
 
         # Retrieve the logs (output)

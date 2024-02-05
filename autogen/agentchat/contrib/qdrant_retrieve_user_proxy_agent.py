@@ -1,7 +1,11 @@
 from typing import Callable, Dict, List, Optional
 
 from autogen.agentchat.contrib.retrieve_user_proxy_agent import RetrieveUserProxyAgent
-from autogen.retrieve_utils import get_files_from_dir, split_files_to_chunks, TEXT_FORMATS
+from autogen.retrieve_utils import (
+    get_files_from_dir,
+    split_files_to_chunks,
+    TEXT_FORMATS,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -9,9 +13,10 @@ logger = logging.getLogger(__name__)
 try:
     from qdrant_client import QdrantClient, models
     from qdrant_client.fastembed_common import QueryResponse
-    import fastembed
 except ImportError as e:
-    logging.fatal("Failed to import qdrant_client with fastembed. Try running 'pip install qdrant_client[fastembed]'")
+    logging.fatal(
+        "Failed to import qdrant_client with fastembed. Try running 'pip install qdrant_client[fastembed]'"
+    )
     raise e
 
 
@@ -47,6 +52,9 @@ class QdrantRetrieveUserProxyAgent(RetrieveUserProxyAgent):
                     will be used. If you want to use other vector db, extend this class and override the `retrieve_docs` function.
                 - docs_path (Optional, Union[str, List[str]]): the path to the docs directory. It can also be the path to a single file,
                     the url to a single file or a list of directories, files and urls. Default is None, which works only if the collection is already created.
+                - extra_docs (Optional, bool): when true, allows adding documents with unique IDs without overwriting existing ones; when false, it replaces existing documents using default IDs, risking collection overwrite.,
+                    when set to true it enables the system to assign unique IDs starting from "length+i" for new document chunks, preventing the replacement of existing documents and facilitating the addition of more content to the collection..
+                    By default, "extra_docs" is set to false, starting document IDs from zero. This poses a risk as new documents might overwrite existing ones, potentially causing unintended loss or alteration of data in the collection.
                 - collection_name (Optional, str): the name of the collection.
                     If key not provided, a default name `autogen-docs` will be used.
                 - model (Optional, str): the model to use for the retrieve chat.
@@ -72,7 +80,7 @@ class QdrantRetrieveUserProxyAgent(RetrieveUserProxyAgent):
                 - custom_text_split_function (Optional, Callable): a custom function to split a string into a list of strings.
                     Default is None, will use the default function in `autogen.retrieve_utils.split_text_to_chunks`.
                 - custom_text_types (Optional, List[str]): a list of file types to be processed. Default is `autogen.retrieve_utils.TEXT_FORMATS`.
-                    This only applies to files under the directories in `docs_path`. Explictly included files and urls will be chunked regardless of their types.
+                    This only applies to files under the directories in `docs_path`. Explicitly included files and urls will be chunked regardless of their types.
                 - recursive (Optional, bool): whether to search documents recursively in the docs_path. Default is True.
                 - parallel (Optional, int): How many parallel workers to use for embedding. Defaults to the number of CPU cores.
                 - on_disk (Optional, bool): Whether to store the collection on disk. Default is False.
@@ -86,13 +94,19 @@ class QdrantRetrieveUserProxyAgent(RetrieveUserProxyAgent):
              **kwargs (dict): other kwargs in [UserProxyAgent](../user_proxy_agent#__init__).
 
         """
-        super().__init__(name, human_input_mode, is_termination_msg, retrieve_config, **kwargs)
+        super().__init__(
+            name, human_input_mode, is_termination_msg, retrieve_config, **kwargs
+        )
         self._client = self._retrieve_config.get("client", QdrantClient(":memory:"))
-        self._embedding_model = self._retrieve_config.get("embedding_model", "BAAI/bge-small-en-v1.5")
+        self._embedding_model = self._retrieve_config.get(
+            "embedding_model", "BAAI/bge-small-en-v1.5"
+        )
         # Uses all available CPU cores to encode data when set to 0
         self._parallel = self._retrieve_config.get("parallel", 0)
         self._on_disk = self._retrieve_config.get("on_disk", False)
-        self._quantization_config = self._retrieve_config.get("quantization_config", None)
+        self._quantization_config = self._retrieve_config.get(
+            "quantization_config", None
+        )
         self._hnsw_config = self._retrieve_config.get("hnsw_config", None)
         self._payload_indexing = self._retrieve_config.get("payload_indexing", False)
 
@@ -100,8 +114,8 @@ class QdrantRetrieveUserProxyAgent(RetrieveUserProxyAgent):
         """
         Args:
             problem (str): the problem to be solved.
-            n_results (int): the number of results to be retrieved.
-            search_string (str): only docs containing this string will be retrieved.
+            n_results (int): the number of results to be retrieved. Default is 20.
+            search_string (str): only docs that contain an exact match of this string will be retrieved. Default is "".
         """
         if not self._collection:
             print("Trying to create collection.")
@@ -116,6 +130,7 @@ class QdrantRetrieveUserProxyAgent(RetrieveUserProxyAgent):
                 custom_text_split_function=self.custom_text_split_function,
                 custom_text_types=self._custom_text_types,
                 recursive=self._recursive,
+                extra_docs=self._extra_docs,
                 parallel=self._parallel,
                 on_disk=self._on_disk,
                 quantization_config=self._quantization_config,
@@ -146,6 +161,7 @@ def create_qdrant_from_dir(
     custom_text_split_function: Callable = None,
     custom_text_types: List[str] = TEXT_FORMATS,
     recursive: bool = True,
+    extra_docs: bool = False,
     parallel: int = 0,
     on_disk: bool = False,
     quantization_config: Optional[models.QuantizationConfig] = None,
@@ -169,6 +185,7 @@ def create_qdrant_from_dir(
             Default is None, will use the default function in `autogen.retrieve_utils.split_text_to_chunks`.
         custom_text_types (Optional, List[str]): a list of file types to be processed. Default is TEXT_FORMATS.
         recursive (Optional, bool): whether to search documents recursively in the dir_path. Default is True.
+        extra_docs (Optional, bool): whether to add more documents in the collection. Default is False
         parallel (Optional, int): How many parallel workers to use for embedding. Defaults to the number of CPU cores
         on_disk (Optional, bool): Whether to store the collection on disk. Default is False.
         quantization_config: Quantization configuration. If None, quantization will be disabled.
@@ -190,26 +207,41 @@ def create_qdrant_from_dir(
         )
     else:
         chunks = split_files_to_chunks(
-            get_files_from_dir(dir_path, custom_text_types, recursive), max_tokens, chunk_mode, must_break_at_empty_line
+            get_files_from_dir(dir_path, custom_text_types, recursive),
+            max_tokens,
+            chunk_mode,
+            must_break_at_empty_line,
         )
     logger.info(f"Found {len(chunks)} chunks.")
 
+    collection = None
     # Check if collection by same name exists, if not, create it with custom options
     try:
-        client.get_collection(collection_name=collection_name)
+        collection = client.get_collection(collection_name=collection_name)
     except Exception:
         client.create_collection(
             collection_name=collection_name,
             vectors_config=client.get_fastembed_vector_params(
-                on_disk=on_disk, quantization_config=quantization_config, hnsw_config=hnsw_config
+                on_disk=on_disk,
+                quantization_config=quantization_config,
+                hnsw_config=hnsw_config,
             ),
         )
-        client.get_collection(collection_name=collection_name)
+        collection = client.get_collection(collection_name=collection_name)
+
+    length = 0
+    if extra_docs:
+        length = len(collection.get()["ids"])
 
     # Upsert in batch of 100 or less if the total number of chunks is less than 100
     for i in range(0, len(chunks), min(100, len(chunks))):
         end_idx = i + min(100, len(chunks) - i)
-        client.add(collection_name, documents=chunks[i:end_idx], ids=[j for j in range(i, end_idx)], parallel=parallel)
+        client.add(
+            collection_name,
+            documents=chunks[i:end_idx],
+            ids=[(j + length) for j in range(i, end_idx)],
+            parallel=parallel,
+        )
 
     # Create a payload index for the document field
     # Enables highly efficient payload filtering. Reference: https://qdrant.tech/documentation/concepts/indexing/#indexing

@@ -4,6 +4,9 @@ import pytest
 from autogen.agentchat.contrib.retrieve_assistant_agent import RetrieveAssistantAgent
 from autogen import config_list_from_json
 
+sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
+from conftest import skip_openai  # noqa: E402
+
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from test_assistant_agent import KEY_LOC, OAI_CONFIG_LIST  # noqa: E402
 
@@ -14,25 +17,24 @@ try:
         QdrantRetrieveUserProxyAgent,
         query_qdrant,
     )
-    import fastembed
 
     QDRANT_INSTALLED = True
 except ImportError:
     QDRANT_INSTALLED = False
 
 try:
-    import openai
-
-    OPENAI_INSTALLED = True
+    pass
 except ImportError:
-    OPENAI_INSTALLED = False
+    skip = True
+else:
+    skip = False or skip_openai
 
 test_dir = os.path.join(os.path.dirname(__file__), "../..", "test_files")
 
 
 @pytest.mark.skipif(
-    sys.platform in ["darwin", "win32"] or not QDRANT_INSTALLED or not OPENAI_INSTALLED,
-    reason="do not run on MacOS or windows or dependency is not installed",
+    sys.platform in ["darwin", "win32"] or not QDRANT_INSTALLED or skip,
+    reason="do not run on MacOS or windows OR dependency is not installed OR requested to skip",
 )
 def test_retrievechat():
     conversations = {}
@@ -75,9 +77,13 @@ def test_retrievechat():
 @pytest.mark.skipif(not QDRANT_INSTALLED, reason="qdrant_client is not installed")
 def test_qdrant_filter():
     client = QdrantClient(":memory:")
-    create_qdrant_from_dir(dir_path="./website/docs", client=client, collection_name="autogen-docs")
+    create_qdrant_from_dir(
+        dir_path="./website/docs", client=client, collection_name="autogen-docs"
+    )
     results = query_qdrant(
-        query_texts=["How can I use AutoGen UserProxyAgent and AssistantAgent to do code generation?"],
+        query_texts=[
+            "How can I use AutoGen UserProxyAgent and AssistantAgent to do code generation?"
+        ],
         n_results=4,
         client=client,
         collection_name="autogen-docs",
@@ -96,7 +102,9 @@ def test_qdrant_search():
 
     # Perform a semantic search without any filter
     results = query_qdrant(["autogen"], client=client)
-    assert isinstance(results, dict) and any("autogen" in res[0].lower() for res in results.get("documents", []))
+    assert isinstance(results, dict) and any(
+        "autogen" in res[0].lower() for res in results.get("documents", [])
+    )
 
 
 if __name__ == "__main__":

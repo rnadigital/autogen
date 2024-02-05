@@ -3,14 +3,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import autogen
 
 try:
     from autogen.agentchat.contrib.llava_agent import (
         LLaVAAgent,
         _llava_call_binary_with_config,
         llava_call,
-        llava_call_binary,
     )
 except ImportError:
     skip = True
@@ -26,7 +24,13 @@ class TestLLaVAAgent(unittest.TestCase):
             llm_config={
                 "timeout": 600,
                 "seed": 42,
-                "config_list": [{"model": "llava-fake", "base_url": "localhost:8000", "api_key": "Fake"}],
+                "config_list": [
+                    {
+                        "model": "llava-fake",
+                        "base_url": "localhost:8000",
+                        "api_key": "Fake",
+                    }
+                ],
             },
         )
 
@@ -88,17 +92,21 @@ class TestLLavaCallBinaryWithConfig(unittest.TestCase):
         self.assertEqual(output, "response text")
         mock_run.assert_called_once_with(
             "http://remote/api",
-            input={"image": "data:image/jpeg;base64,image_data", "prompt": "Test Prompt", "seed": 1},
+            input={
+                "image": "data:image/jpeg;base64,image_data",
+                "prompt": "Test Prompt",
+                "seed": 1,
+            },
         )
 
 
 @pytest.mark.skipif(skip, reason="dependency is not installed")
 class TestLLavaCall(unittest.TestCase):
-    @patch("autogen.agentchat.contrib.llava_agent.llava_formater")
+    @patch("autogen.agentchat.contrib.llava_agent.llava_formatter")
     @patch("autogen.agentchat.contrib.llava_agent.llava_call_binary")
-    def test_llava_call(self, mock_llava_call_binary, mock_llava_formater):
+    def test_llava_call(self, mock_llava_call_binary, mock_llava_formatter):
         # Set up the mocks
-        mock_llava_formater.return_value = ("formatted prompt", ["image1", "image2"])
+        mock_llava_formatter.return_value = ("formatted prompt", ["image1", "image2"])
         mock_llava_call_binary.return_value = "Generated Text"
 
         # Set up the llm_config dictionary
@@ -113,7 +121,9 @@ class TestLLavaCall(unittest.TestCase):
         result = llava_call("Test Prompt", llm_config)
 
         # Check the results
-        mock_llava_formater.assert_called_once_with("Test Prompt", order_image_tokens=False)
+        mock_llava_formatter.assert_called_once_with(
+            "Test Prompt", order_image_tokens=False
+        )
         mock_llava_call_binary.assert_called_once_with(
             "formatted prompt",
             ["image1", "image2"],
