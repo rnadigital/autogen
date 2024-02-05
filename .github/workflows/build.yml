@@ -19,10 +19,12 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
-
+permissions: {}
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    env:
+      AUTOGEN_USE_DOCKER: ${{ matrix.os != 'ubuntu-latest'  && 'False' }}
     strategy:
       fail-fast: false
       matrix:
@@ -39,14 +41,8 @@ jobs:
           python -m pip install --upgrade pip wheel
           pip install -e .
           python -c "import autogen"
-          pip install -e. pytest mock
-      - name: Set AUTOGEN_USE_DOCKER based on OS
-        shell: bash
-        run: |
-          if [[ ${{ matrix.os }} != ubuntu-latest ]]; then
-            echo "AUTOGEN_USE_DOCKER=False" >> $GITHUB_ENV
-          fi
-      - name: Test with pytest
-        if: matrix.python-version != '3.10'
+          pip install pytest mock
+      - name: Test with pytest skipping openai tests
+        if: matrix.python-version != '3.10' && matrix.os == 'ubuntu-latest'
         run: |
           pytest test --skip-openai
