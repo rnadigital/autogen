@@ -1,4 +1,5 @@
-from typing import Callable, Dict, List, Optional
+from socketio.simple_client import SimpleClient
+from typing import Callable, Dict, List, Optional, Union
 
 from autogen.agentchat.contrib.retrieve_user_proxy_agent import RetrieveUserProxyAgent
 from autogen.retrieve_utils import (
@@ -27,6 +28,9 @@ class QdrantRetrieveUserProxyAgent(RetrieveUserProxyAgent):
         human_input_mode: Optional[str] = "ALWAYS",
         is_termination_msg: Optional[Callable[[Dict], bool]] = None,
         retrieve_config: Optional[Dict] = None,  # config for the retrieve agent
+        use_sockets: Optional[bool] = False,
+        socket_client: Optional[Union[SimpleClient, bool]] = None,
+        sid: Optional[Union[str, None]] = "",
         **kwargs,
     ):
         """
@@ -95,7 +99,7 @@ class QdrantRetrieveUserProxyAgent(RetrieveUserProxyAgent):
 
         """
         super().__init__(
-            name, human_input_mode, is_termination_msg, retrieve_config, **kwargs
+            name, human_input_mode, is_termination_msg, retrieve_config, use_sockets, socket_client, sid, **kwargs
         )
         self._client = self._retrieve_config.get("client", QdrantClient(":memory:"))
         self._embedding_model = self._retrieve_config.get(

@@ -1,5 +1,7 @@
 import re
 
+from socketio.simple_client import SimpleClient
+
 try:
     import chromadb
 except ImportError:
@@ -81,6 +83,9 @@ class RetrieveUserProxyAgent(UserProxyAgent):
         human_input_mode: Optional[str] = "ALWAYS",
         is_termination_msg: Optional[Callable[[Dict], bool]] = None,
         retrieve_config: Optional[Dict] = None,  # config for the retrieve agent
+        use_sockets: Optional[bool] = False,
+        socket_client: Optional[Union[SimpleClient, bool]] = None,
+        sid: Optional[Union[str, None]] = "",
         **kwargs,
     ):
         """
@@ -173,6 +178,9 @@ class RetrieveUserProxyAgent(UserProxyAgent):
         super().__init__(
             name=name,
             human_input_mode=human_input_mode,
+            use_sockets=use_sockets,
+            socket_client=socket_client,
+            sid=sid,
             **kwargs,
         )
 
