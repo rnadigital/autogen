@@ -295,7 +295,7 @@ def query_qdrant(
     """
     if client is None:
         client = QdrantClient(**qdrant_client_options)
-        client.set_model(embedding_model)
+    client.set_model(embedding_model)
 
     results = client.query_batch(
         collection_name,
