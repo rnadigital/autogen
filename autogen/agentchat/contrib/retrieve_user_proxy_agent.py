@@ -86,6 +86,7 @@ class RetrieveUserProxyAgent(UserProxyAgent):
         use_sockets: Optional[bool] = False,
         socket_client: Optional[Union[SimpleClient, bool]] = None,
         sid: Optional[Union[str, None]] = "",
+        debug_docs: Optional[bool] = False,
         **kwargs,
     ):
         """
@@ -147,6 +148,7 @@ class RetrieveUserProxyAgent(UserProxyAgent):
                 - custom_text_types (Optional, List[str]): a list of file types to be processed. Default is `autogen.retrieve_utils.TEXT_FORMATS`.
                     This only applies to files under the directories in `docs_path`. Explicitly included files and urls will be chunked regardless of their types.
                 - recursive (Optional, bool): whether to search documents recursively in the docs_path. Default is True.
+            debug_docs: print retrieved docs. Used for debugging purpose
             **kwargs (dict): other kwargs in [UserProxyAgent](../user_proxy_agent#__init__).
 
         Example of overriding retrieve_docs:
@@ -251,6 +253,7 @@ class RetrieveUserProxyAgent(UserProxyAgent):
         self.register_reply(
             Agent, RetrieveUserProxyAgent._generate_retrieve_user_reply, position=2
         )
+        self._debug_docs = debug_docs
 
     def _is_termination_msg_retrievechat(self, message):
         """Check if a message is a termination message.
@@ -342,6 +345,8 @@ class RetrieveUserProxyAgent(UserProxyAgent):
             )
         else:
             raise NotImplementedError(f"task {task} is not implemented.")
+        if self._debug_docs:
+            print("(C)(C)(C)(C)(C)(C)(C)(C)(C)(C)(C)(C)(C)(C)(C)\ncontext with message\n", message)
         return message
 
     def _check_update_context(self, message):

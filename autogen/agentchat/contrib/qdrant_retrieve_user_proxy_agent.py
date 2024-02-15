@@ -31,6 +31,7 @@ class QdrantRetrieveUserProxyAgent(RetrieveUserProxyAgent):
         use_sockets: Optional[bool] = False,
         socket_client: Optional[Union[SimpleClient, bool]] = None,
         sid: Optional[Union[str, None]] = "",
+        debug_docs: Optional[bool] = False,
         **kwargs,
     ):
         """
@@ -95,11 +96,12 @@ class QdrantRetrieveUserProxyAgent(RetrieveUserProxyAgent):
                 - payload_indexing: Whether to create a payload index for the document field. Default is False.
                   You can find more info about the payload indexing options at https://qdrant.tech/documentation/concepts/indexing/#payload-index
                   API Reference: https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/create_field_index
+            debug_docs: print retrieved docs. Used for debugging purpose
              **kwargs (dict): other kwargs in [UserProxyAgent](../user_proxy_agent#__init__).
 
         """
         super().__init__(
-            name, human_input_mode, is_termination_msg, retrieve_config, use_sockets, socket_client, sid, **kwargs
+            name, human_input_mode, is_termination_msg, retrieve_config, use_sockets, socket_client, sid, debug_docs, **kwargs
         )
         self._client = self._retrieve_config.get("client", QdrantClient(":memory:"))
         self._embedding_model = self._retrieve_config.get(
@@ -152,6 +154,8 @@ class QdrantRetrieveUserProxyAgent(RetrieveUserProxyAgent):
             embedding_model=self._embedding_model,
         )
         self._results = results
+        if self._debug_docs:
+            print("(D)(D)(D)(D)(D)(D)(D)(D)(D)(D)(D)(D)(D)(D)(D)\nretrieve_docs\n", results)
 
 
 def create_qdrant_from_dir(
